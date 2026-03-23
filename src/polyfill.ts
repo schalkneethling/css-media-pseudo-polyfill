@@ -22,7 +22,9 @@ export function detectUnsupported(): Set<string> {
 
 export function polyfill(): void {
   const unsupported = detectUnsupported();
-  if (unsupported.size === 0) return;
+  if (unsupported.size === 0) {
+    return;
+  }
 
   // Phase 2+: stylesheet rewriting and element observation will be added here
 }
