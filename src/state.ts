@@ -1,0 +1,45 @@
+/**
+ * Computes the current set of pseudo-class states for a media element
+ * based on its playback, network, and user-interaction properties.
+ *
+ * @param element - The media element to inspect.
+ * @param isStalledFlag - Whether a `stalled` event has fired since the last
+ *   `progress` event, indicating the browser has not received new data.
+ * @returns A set of pseudo-class name strings (e.g. "paused", "playing",
+ *   "buffering", "stalled", "seeking", "muted") derived from the element's
+ *   properties at the time of the call.
+ */
+export function computeStates(element: HTMLMediaElement, isStalledFlag: boolean): Set<string> {
+  const states = new Set<string>();
+
+  if (element.paused) {
+    states.add("paused");
+  } else {
+    states.add("playing");
+
+    // Network/ready-state constants are defined on the HTMLMediaElement interface:
+    // https://html.spec.whatwg.org/multipage/media.html#htmlmediaelement
+    if (
+      // networkState: is the browser actively fetching data over the network?
+      element.networkState === element.NETWORK_LOADING &&
+      // readyState: how much media data has been decoded and is ready for playback?
+      element.readyState <= element.HAVE_CURRENT_DATA
+    ) {
+      states.add("buffering");
+
+      if (isStalledFlag) {
+        states.add("stalled");
+      }
+    }
+  }
+
+  if (element.seeking) {
+    states.add("seeking");
+  }
+
+  if (element.muted) {
+    states.add("muted");
+  }
+
+  return states;
+}
