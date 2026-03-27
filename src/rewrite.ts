@@ -1,53 +1,33 @@
 import { parse, clone, walk, generate } from "css-tree";
-import type { CssNode, ListItem, SelectorList } from "css-tree";
+import type { CssNode, ListItem, List, SelectorList, Rule } from "css-tree";
 import { CLASS_PREFIX } from "./constants.js";
 
 /**
- * Rewrite CSS text, replacing unsupported media pseudo-class selectors
- * with equivalent class selectors. Returns null if no rewrites occurred.
+ * Rewrite CSS text using immediate-sibling injection. For each rule containing
+ * an unsupported media pseudo-class selector, a class-based equivalent is
+ * inserted as a sibling rule immediately after the original. The original rules
+ * are preserved — the browser silently skips rules it does not understand and
+ * applies the class-based fallback. Returns null if no rewrites occurred.
  */
 export function rewriteCss(cssText: string, unsupported: Set<string>): string | null {
   const ast = parse(cssText);
-  const cloned = clone(ast);
   let rewrote = false;
 
-  // Pass 1: Rewrite all unsupported pseudo-class selectors to class selectors,
-  // except :volume-locked which needs special handling (pass 2).
-  walk(cloned, {
-    visit: "PseudoClassSelector",
-    enter(node, item, list) {
-      if (!unsupported.has(node.name)) {
-        return;
-      }
-
-      if (node.name === "volume-locked") {
-        return;
-      }
-
-      rewrote = true;
-      const replacement = list.createItem({
-        type: "ClassSelector",
-        name: `${CLASS_PREFIX}${node.name}`,
-        loc: node.loc,
-      } as CssNode);
-      list.replace(item, replacement);
-    },
-  });
-
-  // Pass 2: Handle :volume-locked
-  if (unsupported.has("volume-locked")) {
-    const volumeLockedRewrote = handleVolumeLocked(cloned);
-
-    if (volumeLockedRewrote) {
+  // Walk rules and inject class-based siblings after matching ones.
+  // We walk the AST visiting Rule nodes. For each rule that contains a target
+  // pseudo-class, we clone it, rewrite the clone's selectors, and insert the
+  // clone as a sibling immediately after the original.
+  injectSiblingRules(ast, unsupported, (didRewrite) => {
+    if (didRewrite) {
       rewrote = true;
     }
-  }
+  });
 
   if (!rewrote) {
     return null;
   }
 
-  const output = generate(cloned);
+  const output = generate(ast);
   if (!output.trim()) {
     return null;
   }
@@ -56,21 +36,116 @@ export function rewriteCss(cssText: string, unsupported: Set<string>): string | 
 }
 
 /**
- * Handle :volume-locked pseudo-class. Although unpolyfillable, it cannot be
- * left as-is in the rewritten stylesheet: in a comma-separated selector list,
- * one invalid selector causes the browser to discard the entire rule — breaking
- * sibling selectors that were successfully rewritten.
+ * Walk the AST looking for Rule nodes that contain target pseudo-classes.
+ * For each match, clone the rule, rewrite selectors in the clone, and
+ * insert the clone immediately after the original in the parent list.
+ */
+function injectSiblingRules(
+  ast: CssNode,
+  unsupported: Set<string>,
+  onRewrite: (didRewrite: boolean) => void,
+): void {
+  // Collect rules to process first to avoid mutating the list during traversal.
+  const rulesToProcess: Array<{ rule: Rule; item: ListItem<CssNode>; list: List<CssNode> }> = [];
+
+  walk(ast, {
+    visit: "Rule",
+    enter(node, item, list) {
+      if (containsTargetPseudoClass(node, unsupported)) {
+        rulesToProcess.push({ rule: node, item, list });
+      }
+    },
+  });
+
+  for (const { rule, item, list } of rulesToProcess) {
+    const cloned = clone(rule) as Rule;
+
+    // Rewrite pseudo-class selectors to class selectors in the clone
+    let cloneRewrote = false;
+    walk(cloned, {
+      visit: "PseudoClassSelector",
+      enter(node, pseudoItem, pseudoList) {
+        if (!unsupported.has(node.name)) {
+          return;
+        }
+
+        if (node.name === "volume-locked") {
+          return;
+        }
+
+        cloneRewrote = true;
+        const replacement = pseudoList.createItem({
+          type: "ClassSelector",
+          name: `${CLASS_PREFIX}${node.name}`,
+          loc: node.loc,
+        } as CssNode);
+        pseudoList.replace(pseudoItem, replacement);
+      },
+    });
+
+    // Handle :volume-locked in the clone
+    if (unsupported.has("volume-locked")) {
+      if (handleVolumeLocked(cloned)) {
+        cloneRewrote = true;
+      }
+    }
+
+    if (!cloneRewrote) {
+      continue;
+    }
+
+    // Check if the clone's prelude still has selectors after volume-locked pruning
+    const prelude = cloned.prelude as SelectorList;
+    if (prelude.type === "SelectorList" && prelude.children.isEmpty) {
+      // All selectors were pruned (e.g., lone :volume-locked rule) — skip injection
+      continue;
+    }
+
+    // Insert the cloned rule immediately after the original
+    const newItem = list.createItem(cloned as CssNode);
+    if (item.next) {
+      list.insert(newItem, item.next);
+    } else {
+      list.appendData(cloned as CssNode);
+    }
+
+    onRewrite(true);
+  }
+}
+
+/**
+ * Check whether a rule contains any target pseudo-class selectors.
+ */
+function containsTargetPseudoClass(rule: Rule, unsupported: Set<string>): boolean {
+  let found = false;
+  walk(rule, {
+    visit: "PseudoClassSelector",
+    enter(node) {
+      if (unsupported.has(node.name)) {
+        found = true;
+        return this.break;
+      }
+    },
+  });
+  return found;
+}
+
+/**
+ * Handle :volume-locked pseudo-class in a cloned rule. Although unpolyfillable,
+ * it cannot be left as-is in the sibling rule: in a comma-separated selector
+ * list, one invalid selector causes the browser to discard the entire rule —
+ * breaking sibling selectors that were successfully rewritten.
  *
  * - In a selector list → prune the :volume-locked branch
- * - Lone selector in a rule → remove entire rule
- * - Inside :is()/:where() → prune from argument list (cosmetic; forgiving parsing handles it)
+ * - Lone selector in a rule → prelude becomes empty (caller skips injection)
+ * - Inside :is()/:where() → prune from argument list
  * - Inside :not() → rewrite to class selector (matches everything, consistent)
  */
-function handleVolumeLocked(ast: CssNode): boolean {
+function handleVolumeLocked(rule: Rule): boolean {
   let rewrote = false;
 
   // Rewrite :volume-locked inside :not() to a class selector
-  walk(ast, {
+  walk(rule, {
     visit: "PseudoClassSelector",
     enter(node) {
       if (node.name !== "not" || !node.children) {
@@ -95,7 +170,7 @@ function handleVolumeLocked(ast: CssNode): boolean {
   });
 
   // Prune :volume-locked from :is()/:where() argument lists
-  walk(ast, {
+  walk(rule, {
     visit: "PseudoClassSelector",
     enter(node) {
       if (node.name !== "is" && node.name !== "where") {
@@ -113,24 +188,13 @@ function handleVolumeLocked(ast: CssNode): boolean {
     },
   });
 
-  // Prune :volume-locked from top-level selector lists and remove empty rules
-  walk(ast, {
-    visit: "Rule",
-    enter(_node, item, list) {
-      const prelude = _node.prelude as SelectorList;
-      if (prelude.type !== "SelectorList") {
-        return;
-      }
-
-      if (pruneSelectorsWithVolumeLocked(prelude)) {
-        rewrote = true;
-      }
-
-      if (prelude.children.isEmpty) {
-        list.remove(item);
-      }
-    },
-  });
+  // Prune :volume-locked from top-level selector lists
+  const prelude = rule.prelude as SelectorList;
+  if (prelude.type === "SelectorList") {
+    if (pruneSelectorsWithVolumeLocked(prelude)) {
+      rewrote = true;
+    }
+  }
 
   return rewrote;
 }
@@ -166,11 +230,13 @@ function pruneSelectorsWithVolumeLocked(selectorList: SelectorList): boolean {
 
 /**
  * Process all inline <style> elements in the document.
- * For each that contains target pseudo-classes, injects a rewritten
- * <style> after it and disables the original.
+ * For each that contains target pseudo-classes, replaces its content
+ * with the rewritten CSS (originals plus class-based siblings).
  */
 export function rewriteStyleElements(unsupported: Set<string>): void {
-  const styles = document.querySelectorAll<HTMLStyleElement>("style:not([data-polyfill-source])");
+  const styles = document.querySelectorAll<HTMLStyleElement>(
+    "style:not([data-polyfill-rewritten])",
+  );
 
   for (const style of styles) {
     const cssText = style.textContent;
@@ -183,14 +249,7 @@ export function rewriteStyleElements(unsupported: Set<string>): void {
       continue;
     }
 
-    const injected = document.createElement("style");
-    injected.setAttribute("data-polyfill-source", "");
-    injected.textContent = rewritten;
-
-    style.after(injected);
-
-    if (style.sheet) {
-      style.sheet.disabled = true;
-    }
+    style.textContent = rewritten;
+    style.setAttribute("data-polyfill-rewritten", "");
   }
 }

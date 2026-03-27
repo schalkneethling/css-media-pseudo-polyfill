@@ -133,7 +133,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const states = computeStates(element, true);
+      const states = computeStates(element, /* isStalledFlag */ true);
       expect(states.has("stalled")).toBe(false);
       expect(states.has("buffering")).toBe(false);
       expect(states.has("playing")).toBe(true);
@@ -147,7 +147,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const states = computeStates(element, false);
+      const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(false);
       expect(states.has("paused")).toBe(true);
     });
@@ -160,7 +160,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const playingStates = computeStates(playingElement, false);
+      const playingStates = computeStates(playingElement, /* isStalledFlag */ false);
       expect(playingStates.has("playing")).toBe(true);
       expect(playingStates.has("paused")).toBe(false);
 
@@ -171,7 +171,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const pausedStates = computeStates(pausedElement, false);
+      const pausedStates = computeStates(pausedElement, /* isStalledFlag */ false);
       expect(pausedStates.has("paused")).toBe(true);
       expect(pausedStates.has("playing")).toBe(false);
     });
@@ -184,7 +184,7 @@ describe("computeStates", () => {
         seeking: true,
         muted: true,
       });
-      const states = computeStates(element, true);
+      const states = computeStates(element, /* isStalledFlag */ true);
       expect(states.has("volume-locked")).toBe(false);
     });
   });
@@ -198,7 +198,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const states = computeStates(element, false);
+      const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(false);
     });
 
@@ -210,7 +210,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const states = computeStates(element, false);
+      const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(true);
     });
 
@@ -222,7 +222,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const states = computeStates(element, false);
+      const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(true);
     });
   });
@@ -236,7 +236,7 @@ describe("computeStates", () => {
         seeking: false,
         muted: false,
       });
-      const states = computeStates(element, false);
+      const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(false);
     });
   });

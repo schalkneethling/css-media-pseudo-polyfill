@@ -1,4 +1,6 @@
 import { PSEUDO_CLASSES } from "./constants.js";
+import { rewriteStyleElements } from "./rewrite.js";
+import { observeMediaElements } from "./observe.js";
 
 export function detectUnsupported(): Set<string> {
   const unsupported = new Set<string>();
@@ -26,5 +28,6 @@ export function polyfill(): void {
     return;
   }
 
-  // Phase 2+: stylesheet rewriting and element observation will be added here
+  rewriteStyleElements(unsupported);
+  observeMediaElements(unsupported);
 }

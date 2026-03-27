@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
+import { parse, walk, generate } from "css-tree";
+import type { CssNode, Atrule } from "css-tree";
 import { rewriteCss } from "../../src/rewrite.js";
 
 const ALL_UNSUPPORTED = new Set([
@@ -15,12 +17,78 @@ function normalize(css: string): string {
   return css.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Extract rule selectors from parsed CSS in document order.
+ * Returns an array of selector strings (e.g., ["video:playing", "video.cls"]).
+ */
+function extractRuleSelectors(css: string): string[] {
+  const ast = parse(css);
+  const selectors: string[] = [];
+
+  walk(ast, {
+    visit: "Rule",
+    enter(node) {
+      selectors.push(generate(node.prelude));
+    },
+  });
+
+  return selectors;
+}
+
+interface RuleInfo {
+  selector: string;
+  parentAtRule: string | null;
+}
+
+/**
+ * Extract rules with their parent at-rule context.
+ * For top-level rules, parentAtRule is null.
+ * For rules inside @media/@layer, parentAtRule is the at-rule prelude
+ * (e.g., "(min-width:768px)" or "base").
+ */
+function extractRulesWithContext(css: string): RuleInfo[] {
+  const ast = parse(css);
+  const rules: RuleInfo[] = [];
+  const atRuleStack: (string | null)[] = [null];
+
+  walk(ast, {
+    enter(node: CssNode) {
+      if (node.type === "Atrule") {
+        const atrule = node as Atrule;
+        const name = atrule.name;
+        const prelude = atrule.prelude ? generate(atrule.prelude) : "";
+        atRuleStack.push(`@${name} ${prelude}`.trim());
+      }
+      if (node.type === "Rule") {
+        rules.push({
+          selector: generate((node as CssNode & { prelude: CssNode }).prelude),
+          parentAtRule: atRuleStack[atRuleStack.length - 1],
+        });
+      }
+    },
+    leave(node: CssNode) {
+      if (node.type === "Atrule") {
+        atRuleStack.pop();
+      }
+    },
+  });
+
+  return rules;
+}
+
 describe("rewriteCss", () => {
   describe("basic selector rewriting", () => {
-    it("rewrites simple pseudo-class: video:playing", () => {
-      const result = rewriteCss("video:playing { color: green }", ALL_UNSUPPORTED);
+    it("injects class-based sibling after original rule: video:playing", () => {
+      const result = rewriteCss(
+        "video:playing { color: green }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe("video.media-pseudo-polyfill-playing{color:green}");
+      const normalized = normalize(result!);
+      // Original rule preserved
+      expect(normalized).toContain("video:playing{color:green}");
+      // Class-based sibling injected after it
+      expect(normalized).toContain("video.media-pseudo-polyfill-playing{color:green}");
     });
 
     it("rewrites compound selector: video.player:playing:not(:paused)", () => {
@@ -29,135 +97,201 @@ describe("rewriteCss", () => {
         ALL_UNSUPPORTED,
       );
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe(
+      const normalized = normalize(result!);
+      // Original preserved
+      expect(normalized).toContain("video.player:playing:not(:paused){color:green}");
+      // Sibling with class selectors
+      expect(normalized).toContain(
         "video.player.media-pseudo-polyfill-playing:not(.media-pseudo-polyfill-paused){color:green}",
       );
     });
 
     it("rewrites nested :is()", () => {
-      const result = rewriteCss("video:is(:playing, :paused) { color: green }", ALL_UNSUPPORTED);
+      const result = rewriteCss(
+        "video:is(:playing, :paused) { color: green }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe(
+      const normalized = normalize(result!);
+      expect(normalized).toContain("video:is(:playing,:paused){color:green}");
+      expect(normalized).toContain(
         "video:is(.media-pseudo-polyfill-playing,.media-pseudo-polyfill-paused){color:green}",
       );
     });
 
     it("rewrites :where()", () => {
-      const result = rewriteCss(":where(video:playing) { color: green }", ALL_UNSUPPORTED);
+      const result = rewriteCss(
+        ":where(video:playing) { color: green }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe(":where(video.media-pseudo-polyfill-playing){color:green}");
+      const normalized = normalize(result!);
+      expect(normalized).toContain(":where(video:playing){color:green}");
+      expect(normalized).toContain(":where(video.media-pseudo-polyfill-playing){color:green}");
     });
 
     it("rewrites :has()", () => {
-      const result = rewriteCss("div:has(video:playing) { color: green }", ALL_UNSUPPORTED);
+      const result = rewriteCss(
+        "div:has(video:playing) { color: green }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe("div:has(video.media-pseudo-polyfill-playing){color:green}");
+      const normalized = normalize(result!);
+      expect(normalized).toContain("div:has(video:playing){color:green}");
+      expect(normalized).toContain("div:has(video.media-pseudo-polyfill-playing){color:green}");
     });
 
     it("preserves pseudo-elements: video:playing::cue", () => {
-      const result = rewriteCss("video:playing::cue { color: green }", ALL_UNSUPPORTED);
+      const result = rewriteCss(
+        "video:playing::cue { color: green }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe("video.media-pseudo-polyfill-playing::cue{color:green}");
+      const normalized = normalize(result!);
+      expect(normalized).toContain("video:playing::cue{color:green}");
+      expect(normalized).toContain("video.media-pseudo-polyfill-playing::cue{color:green}");
     });
   });
 
-  describe("cascade preservation", () => {
-    it("maintains relative rule order", () => {
+  describe("immediate-sibling injection", () => {
+    it("places class-based rule immediately after original", () => {
+      const result = rewriteCss(
+        "video:playing { color: green }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
+      expect(result).not.toBeNull();
+
+      const selectors = extractRuleSelectors(result!);
+      expect(selectors).toEqual(["video:playing", "video.media-pseudo-polyfill-playing"]);
+    });
+
+    it("maintains relative order: original A, sibling A, unrelated B, original C, sibling C", () => {
       const input = `
         video:playing { color: green }
         video { color: red }
         audio:paused { color: blue }
       `;
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      const normalized = normalize(result!);
-      const playingIdx = normalized.indexOf("media-pseudo-polyfill-playing");
-      const videoIdx = normalized.indexOf("video{color:red}");
-      const pausedIdx = normalized.indexOf("media-pseudo-polyfill-paused");
-      expect(playingIdx).toBeLessThan(videoIdx);
-      expect(videoIdx).toBeLessThan(pausedIdx);
+
+      const selectors = extractRuleSelectors(result!);
+      expect(selectors).toEqual([
+        "video:playing",
+        "video.media-pseudo-polyfill-playing",
+        "video",
+        "audio:paused",
+        "audio.media-pseudo-polyfill-paused",
+      ]);
     });
   });
 
   describe("@media and @layer nesting", () => {
-    it("preserves rules inside @media", () => {
+    it("both original and sibling remain inside @media", () => {
       const input = "@media (min-width: 768px) { video:playing { color: green } }";
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe(
-        "@media (min-width:768px){video.media-pseudo-polyfill-playing{color:green}}",
-      );
+
+      const rules = extractRulesWithContext(result!);
+      expect(rules).toEqual([
+        { selector: "video:playing", parentAtRule: "@media (min-width:768px)" },
+        {
+          selector: "video.media-pseudo-polyfill-playing",
+          parentAtRule: "@media (min-width:768px)",
+        },
+      ]);
     });
 
-    it("preserves rules inside @layer", () => {
+    it("both original and sibling remain inside @layer", () => {
       const input = "@layer base { video:playing { color: green } }";
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe(
-        "@layer base{video.media-pseudo-polyfill-playing{color:green}}",
-      );
+
+      const rules = extractRulesWithContext(result!);
+      expect(rules).toEqual([
+        { selector: "video:playing", parentAtRule: "@layer base" },
+        { selector: "video.media-pseudo-polyfill-playing", parentAtRule: "@layer base" },
+      ]);
     });
   });
 
   describe(":volume-locked handling", () => {
-    it("removes rule with lone :volume-locked selector", () => {
-      const result = rewriteCss("video:volume-locked { color: red }", ALL_UNSUPPORTED);
+    it("removes sibling for rule with lone :volume-locked selector", () => {
+      const result = rewriteCss(
+        "video:volume-locked { color: red }",
+        /* unsupported */ ALL_UNSUPPORTED,
+      );
+      // Only the original remains; no sibling injected and no class-based rule
+      // Since no useful rewrite occurred, returns null
       expect(result).toBeNull();
     });
 
-    it("prunes :volume-locked branch from selector list, preserving siblings", () => {
+    it("prunes :volume-locked branch from selector list in sibling, preserving siblings", () => {
       const input = "video:playing, video:volume-locked { color: green }";
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      const normalized = normalize(result!);
-      expect(normalized).toContain("media-pseudo-polyfill-playing");
-      expect(normalized).not.toContain("volume-locked");
+
+      const selectors = extractRuleSelectors(result!);
+      // Original preserved with both branches, sibling has :volume-locked pruned
+      expect(selectors).toEqual([
+        "video:playing,video:volume-locked",
+        "video.media-pseudo-polyfill-playing",
+      ]);
     });
 
-    it("removes :volume-locked argument from :is()", () => {
+    it("removes :volume-locked argument from :is() in sibling", () => {
       const input = "video:is(:playing, :volume-locked) { color: green }";
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      const normalized = normalize(result!);
-      expect(normalized).toContain("media-pseudo-polyfill-playing");
-      expect(normalized).not.toContain("volume-locked");
+
+      const selectors = extractRuleSelectors(result!);
+      // Original preserved, sibling has :volume-locked removed from :is()
+      expect(selectors[0]).toBe("video:is(:playing,:volume-locked)");
+      expect(selectors[1]).toContain("media-pseudo-polyfill-playing");
+      expect(selectors[1]).not.toContain("volume-locked");
     });
 
-    it("rewrites :volume-locked inside :not() to class selector", () => {
+    it("rewrites :volume-locked inside :not() to class selector in sibling", () => {
       const input = "video:not(:volume-locked) { color: green }";
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      expect(normalize(result!)).toBe(
-        "video:not(.media-pseudo-polyfill-volume-locked){color:green}",
-      );
+      const normalized = normalize(result!);
+      // Original preserved
+      expect(normalized).toContain("video:not(:volume-locked){color:green}");
+      // Sibling with class selector
+      expect(normalized).toContain("video:not(.media-pseudo-polyfill-volume-locked){color:green}");
     });
   });
 
   describe("no rewrites", () => {
     it("returns null when no target pseudo-classes are present", () => {
-      const result = rewriteCss("video:hover { color: green }", ALL_UNSUPPORTED);
+      const result = rewriteCss("video:hover { color: green }", /* unsupported */ ALL_UNSUPPORTED);
       expect(result).toBeNull();
     });
 
     it("returns null for empty CSS", () => {
-      const result = rewriteCss("", ALL_UNSUPPORTED);
+      const result = rewriteCss("", /* unsupported */ ALL_UNSUPPORTED);
       expect(result).toBeNull();
     });
   });
 
   describe("multiple rules", () => {
-    it("transforms only matching rules, includes all in output", () => {
+    it("injects siblings only for matching rules, includes all in output", () => {
       const input = `
         video:playing { color: green }
         div { color: red }
         audio:muted { color: blue }
       `;
-      const result = rewriteCss(input, ALL_UNSUPPORTED);
+      const result = rewriteCss(input, /* unsupported */ ALL_UNSUPPORTED);
       expect(result).not.toBeNull();
-      const normalized = normalize(result!);
-      expect(normalized).toContain("media-pseudo-polyfill-playing");
-      expect(normalized).toContain("div{color:red}");
-      expect(normalized).toContain("media-pseudo-polyfill-muted");
+
+      const selectors = extractRuleSelectors(result!);
+      expect(selectors).toEqual([
+        "video:playing",
+        "video.media-pseudo-polyfill-playing",
+        "div",
+        "audio:muted",
+        "audio.media-pseudo-polyfill-muted",
+      ]);
     });
   });
 
@@ -165,13 +299,16 @@ describe("rewriteCss", () => {
     it("only rewrites unsupported pseudo-classes", () => {
       const partialUnsupported = new Set(["buffering", "stalled"]);
       const input = "video:playing { color: green } video:buffering { color: yellow }";
-      const result = rewriteCss(input, partialUnsupported);
+      const result = rewriteCss(input, /* unsupported */ partialUnsupported);
       expect(result).not.toBeNull();
-      const normalized = normalize(result!);
-      // :playing is natively supported, should remain as-is
-      expect(normalized).toContain("video:playing{color:green}");
-      // :buffering is unsupported, should be rewritten
-      expect(normalized).toContain("media-pseudo-polyfill-buffering");
+
+      const selectors = extractRuleSelectors(result!);
+      // :playing is natively supported — no sibling. :buffering gets a sibling.
+      expect(selectors).toEqual([
+        "video:playing",
+        "video:buffering",
+        "video.media-pseudo-polyfill-buffering",
+      ]);
     });
   });
 });
