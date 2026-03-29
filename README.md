@@ -12,7 +12,9 @@ The polyfill runs in three stages:
 
 2. **CSS rewriting** — Inline `<style>` elements are parsed with [css-tree](https://github.com/nicolo-ribaudo/css-tree). For each rule containing a target pseudo-class, a class-based equivalent is injected as a sibling rule immediately after the original in the AST (e.g., `video:playing { ... }` is followed by `video.media-pseudo-polyfill-playing { ... }`). The browser skips the rule it doesn't understand and applies the class-based fallback — a natural progressive enhancement pair.
 
-3. **Element observation** — Media elements are discovered via `querySelectorAll` and a `MutationObserver`. Event listeners are attached to each element to track state changes. On every relevant event, the element's state is recomputed and the corresponding polyfill classes are toggled.
+3. **`<link>` stylesheet rewriting** — Same-origin `<link rel="stylesheet">` elements are rewritten via the CSSOM API. The polyfill walks `sheet.cssRules`, and for each style rule containing a target pseudo-class, builds a class-based equivalent and inserts it via `insertRule()` immediately after the original. Sheets not yet loaded are deferred via a one-time `load` event listener. Cross-origin sheets that throw `SecurityError` on `cssRules` access are skipped gracefully.
+
+4. **Element observation** — Media elements are discovered via `querySelectorAll` and a `MutationObserver`. Event listeners are attached to each element to track state changes. On every relevant event, the element's state is recomputed and the corresponding polyfill classes are toggled.
 
 ## Entry points
 
@@ -100,6 +102,22 @@ Media events do not bubble, so each element requires direct `addEventListener` c
 
 Before attaching listeners, the polyfill checks whether the element is already tracked in the `WeakMap`. This prevents duplicate bindings from rapid DOM reparenting, where the `MutationObserver` may report the same element in both `removedNodes` and `addedNodes` in a single batch.
 
+### CSSOM-based rewriting for `<link>` stylesheets
+
+Same-origin `<link rel="stylesheet">` elements are rewritten via the CSSOM API (`sheet.cssRules` + `insertRule()`) rather than fetching and re-parsing the CSS text. This has significant advantages:
+
+- **No fetch required** — the browser has already loaded the sheet
+- **No URL resolution problem** — the browser retains the sheet's original URL context, so `url(...)` values in `background-image`, `@font-face`, etc. continue to resolve correctly
+- **Nesting preserved naturally** — `insertRule()` on a `CSSMediaRule`, `CSSSupportsRule`, or `CSSLayerBlockRule` keeps the rule inside its context automatically
+
+The algorithm walks `cssRules` forward, tracking an insertion offset. For each matching `CSSStyleRule`, the selector is parsed with css-tree (reusing the same `rewriteSelectorList` helper as the `<style>` path), a class-based rule is built, and `insertRule()` places it immediately after the original. The forward iteration with offset tracking ensures siblings land in the right position without re-processing inserted rules.
+
+Cross-origin sheets that throw `SecurityError` on `cssRules` access are skipped gracefully. Cross-origin support via fetch + URL absolutization is planned for a future phase.
+
+### Shared selector rewriting
+
+Both the `<style>` text path and the `<link>` CSSOM path share the same `rewriteSelectorList` function for the core selector transformation. This ensures consistent handling of `:is()`, `:where()`, `:not()`, `:has()`, and `:volume-locked` pruning across both paths. The `<style>` path operates on a full stylesheet AST, while the `<link>` path parses individual `selectorText` strings from CSSOM rules.
+
 ## Known limitations
 
 - **`:volume-locked` is not polyfillable.** The "volume locked" flag has no DOM surface. The polyfill removes `:volume-locked` selectors from rewritten stylesheets and never sets the corresponding class.
@@ -108,6 +126,6 @@ Before attaching listeners, the polyfill checks whether the element is already t
 
 - **FOUC window.** Stylesheet rewriting runs when the polyfill is invoked (at `DOMContentLoaded` for the default entry point). There is a window between first paint and polyfill initialization where pseudo-class-based styles are not applied. Use the `"./fn"` entry point from a synchronous `<script>` in `<head>` to minimize this gap.
 
-- **No `<link>` stylesheet support yet.** Only inline `<style>` elements are rewritten. External `<link rel="stylesheet">` support is planned.
+- **Cross-origin `<link>` stylesheets are not rewritten.** Same-origin `<link>` stylesheets are rewritten via CSSOM. Cross-origin sheets that block `cssRules` access are skipped. Support via fetch + URL absolutization is planned.
 
 - **No dynamic stylesheet observation yet.** Stylesheets added or mutated after initialization are not rewritten. This is planned.

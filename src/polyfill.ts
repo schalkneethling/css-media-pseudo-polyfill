@@ -1,5 +1,6 @@
 import { PSEUDO_CLASSES } from "./constants.js";
 import { rewriteStyleElements } from "./rewrite.js";
+import { rewriteLinkStylesheets } from "./rewrite-link.js";
 import { observeMediaElements } from "./observe.js";
 
 export function detectUnsupported(): Set<string> {
@@ -29,5 +30,6 @@ export function polyfill(): void {
   }
 
   rewriteStyleElements(unsupported);
+  rewriteLinkStylesheets(unsupported);
   observeMediaElements(unsupported);
 }

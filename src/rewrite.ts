@@ -60,44 +60,19 @@ function injectSiblingRules(
   for (const { rule, item, list } of rulesToProcess) {
     const cloned = clone(rule) as Rule;
 
-    // Rewrite pseudo-class selectors to class selectors in the clone
-    let cloneRewrote = false;
-    walk(cloned, {
-      visit: "PseudoClassSelector",
-      enter(node, pseudoItem, pseudoList) {
-        if (!unsupported.has(node.name)) {
-          return;
-        }
-
-        if (node.name === "volume-locked") {
-          return;
-        }
-
-        cloneRewrote = true;
-        const replacement = pseudoList.createItem({
-          type: "ClassSelector",
-          name: `${CLASS_PREFIX}${node.name}`,
-          loc: node.loc,
-        } as CssNode);
-        pseudoList.replace(pseudoItem, replacement);
-      },
-    });
-
-    // Handle :volume-locked in the clone
-    if (unsupported.has("volume-locked")) {
-      if (handleVolumeLocked(cloned)) {
-        cloneRewrote = true;
-      }
+    const prelude = cloned.prelude as SelectorList;
+    if (prelude.type !== "SelectorList") {
+      continue;
     }
+
+    const cloneRewrote = rewriteSelectorList(prelude, unsupported);
 
     if (!cloneRewrote) {
       continue;
     }
 
-    // Check if the clone's prelude still has selectors after volume-locked pruning
-    const prelude = cloned.prelude as SelectorList;
-    if (prelude.type === "SelectorList" && prelude.children.isEmpty) {
-      // All selectors were pruned (e.g., lone :volume-locked rule) — skip injection
+    // Check if the selector list is empty after volume-locked pruning
+    if (prelude.children.isEmpty) {
       continue;
     }
 
@@ -114,14 +89,14 @@ function injectSiblingRules(
 }
 
 /**
- * Check whether a rule contains any target pseudo-class selectors.
+ * Check whether a CSS node contains any target pseudo-class selectors.
  */
-function containsTargetPseudoClass(rule: Rule, unsupported: Set<string>): boolean {
+export function containsTargetPseudoClass(node: CssNode, unsupported: Set<string>): boolean {
   let found = false;
-  walk(rule, {
+  walk(node, {
     visit: "PseudoClassSelector",
-    enter(node) {
-      if (unsupported.has(node.name)) {
+    enter(pseudoNode) {
+      if (unsupported.has(pseudoNode.name)) {
         found = true;
         return this.break;
       }
@@ -131,21 +106,63 @@ function containsTargetPseudoClass(rule: Rule, unsupported: Set<string>): boolea
 }
 
 /**
- * Handle :volume-locked pseudo-class in a cloned rule. Although unpolyfillable,
+ * Rewrite pseudo-class selectors to class selectors in a SelectorList node,
+ * mutating it in place. Handles :volume-locked pruning and :not() rewriting.
+ * Returns whether any rewrites occurred.
+ *
+ * Used by both the <style> text rewriting path and the <link> CSSOM path.
+ */
+export function rewriteSelectorList(selectorList: SelectorList, unsupported: Set<string>): boolean {
+  let rewrote = false;
+
+  // Rewrite non-volume-locked pseudo-classes to class selectors
+  walk(selectorList, {
+    visit: "PseudoClassSelector",
+    enter(node, pseudoItem, pseudoList) {
+      if (!unsupported.has(node.name)) {
+        return;
+      }
+
+      if (node.name === "volume-locked") {
+        return;
+      }
+
+      rewrote = true;
+      const replacement = pseudoList.createItem({
+        type: "ClassSelector",
+        name: `${CLASS_PREFIX}${node.name}`,
+        loc: node.loc,
+      } as CssNode);
+      pseudoList.replace(pseudoItem, replacement);
+    },
+  });
+
+  // Handle :volume-locked
+  if (unsupported.has("volume-locked")) {
+    if (handleVolumeLocked(selectorList)) {
+      rewrote = true;
+    }
+  }
+
+  return rewrote;
+}
+
+/**
+ * Handle :volume-locked pseudo-class in a selector list. Although unpolyfillable,
  * it cannot be left as-is in the sibling rule: in a comma-separated selector
  * list, one invalid selector causes the browser to discard the entire rule —
  * breaking sibling selectors that were successfully rewritten.
  *
  * - In a selector list → prune the :volume-locked branch
- * - Lone selector in a rule → prelude becomes empty (caller skips injection)
+ * - Lone selector → list becomes empty (caller skips injection)
  * - Inside :is()/:where() → prune from argument list
  * - Inside :not() → rewrite to class selector (matches everything, consistent)
  */
-function handleVolumeLocked(rule: Rule): boolean {
+function handleVolumeLocked(selectorList: SelectorList): boolean {
   let rewrote = false;
 
   // Rewrite :volume-locked inside :not() to a class selector
-  walk(rule, {
+  walk(selectorList, {
     visit: "PseudoClassSelector",
     enter(node) {
       if (node.name !== "not" || !node.children) {
@@ -170,7 +187,7 @@ function handleVolumeLocked(rule: Rule): boolean {
   });
 
   // Prune :volume-locked from :is()/:where() argument lists
-  walk(rule, {
+  walk(selectorList, {
     visit: "PseudoClassSelector",
     enter(node) {
       if (node.name !== "is" && node.name !== "where") {
@@ -179,21 +196,18 @@ function handleVolumeLocked(rule: Rule): boolean {
       if (!node.children) {
         return;
       }
-      const selectorList = node.children.first as SelectorList | null;
-      if (selectorList?.type === "SelectorList") {
-        if (pruneSelectorsWithVolumeLocked(selectorList)) {
+      const nestedSelectorList = node.children.first as SelectorList | null;
+      if (nestedSelectorList?.type === "SelectorList") {
+        if (pruneSelectorsWithVolumeLocked(nestedSelectorList)) {
           rewrote = true;
         }
       }
     },
   });
 
-  // Prune :volume-locked from top-level selector lists
-  const prelude = rule.prelude as SelectorList;
-  if (prelude.type === "SelectorList") {
-    if (pruneSelectorsWithVolumeLocked(prelude)) {
-      rewrote = true;
-    }
+  // Prune :volume-locked from top-level selector list
+  if (pruneSelectorsWithVolumeLocked(selectorList)) {
+    rewrote = true;
   }
 
   return rewrote;
