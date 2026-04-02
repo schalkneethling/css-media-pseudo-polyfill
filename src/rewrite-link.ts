@@ -98,7 +98,7 @@ export function rewriteCssomRules(
  * Process a single link element's stylesheet via CSSOM.
  * Guards against double-processing and cross-origin SecurityError.
  */
-function processLinkSheet(link: HTMLLinkElement, unsupported: Set<string>): void {
+export function processLinkSheet(link: HTMLLinkElement, unsupported: Set<string>): void {
   if (link.hasAttribute("data-polyfill-rewritten")) {
     return;
   }

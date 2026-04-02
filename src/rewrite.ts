@@ -243,6 +243,26 @@ function pruneSelectorsWithVolumeLocked(selectorList: SelectorList): boolean {
 }
 
 /**
+ * Process a single inline <style> element.
+ * If it contains target pseudo-classes, replaces its content
+ * with the rewritten CSS (originals plus class-based siblings).
+ */
+export function rewriteSingleStyleElement(style: HTMLStyleElement, unsupported: Set<string>): void {
+  const cssText = style.textContent;
+  if (!cssText) {
+    return;
+  }
+
+  const rewritten = rewriteCss(cssText, unsupported);
+  if (rewritten === null) {
+    return;
+  }
+
+  style.textContent = rewritten;
+  style.setAttribute("data-polyfill-rewritten", "");
+}
+
+/**
  * Process all inline <style> elements in the document.
  * For each that contains target pseudo-classes, replaces its content
  * with the rewritten CSS (originals plus class-based siblings).
@@ -253,17 +273,6 @@ export function rewriteStyleElements(unsupported: Set<string>): void {
   );
 
   for (const style of styles) {
-    const cssText = style.textContent;
-    if (!cssText) {
-      continue;
-    }
-
-    const rewritten = rewriteCss(cssText, unsupported);
-    if (rewritten === null) {
-      continue;
-    }
-
-    style.textContent = rewritten;
-    style.setAttribute("data-polyfill-rewritten", "");
+    rewriteSingleStyleElement(style, unsupported);
   }
 }
