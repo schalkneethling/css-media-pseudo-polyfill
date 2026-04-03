@@ -90,17 +90,21 @@ function createMockStyleElement(cssText: string): MockStyleElement {
 // --- Link element mock ---
 
 interface MockLinkElement extends MockElement {
-  sheet: { cssRules: unknown[] } | null;
+  href: string;
+  disabled: boolean;
   addEventListener: ReturnType<typeof vi.fn>;
+  after: ReturnType<typeof vi.fn>;
 }
 
-function createMockLinkElement(sheet: { cssRules: unknown[] } | null): MockLinkElement {
+function createMockLinkElement(href = "http://localhost:3000/styles.css"): MockLinkElement {
   const element = createMockElement("LINK");
   element.attributes.set("rel", "stylesheet");
   return {
     ...element,
-    sheet,
+    href,
+    disabled: false,
     addEventListener: vi.fn(),
+    after: vi.fn(),
   };
 }
 
@@ -126,9 +130,17 @@ function createMockContainer(children: Array<MockStyleElement | MockLinkElement>
   };
 }
 
-// --- Document mock ---
+// --- Document and global mocks ---
 
 const originalDocument = globalThis.document;
+const originalFetch = globalThis.fetch;
+const originalWindow = globalThis.window;
+
+function mockFetchResponse(cssText: string): void {
+  globalThis.fetch = vi.fn(() =>
+    Promise.resolve({ text: () => Promise.resolve(cssText) }),
+  ) as unknown as typeof fetch;
+}
 
 function setupGlobals(): void {
   globalThis.MutationObserver = vi.fn(function MockMutationObserver(callback: MutationCallback) {
@@ -142,12 +154,25 @@ function setupGlobals(): void {
 
   globalThis.document = {
     documentElement: { tagName: "HTML" },
+    createElement: vi.fn(() => ({
+      textContent: null,
+      setAttribute: vi.fn(),
+    })),
   } as unknown as Document;
+
+  globalThis.window = {
+    location: { origin: "http://localhost:3000" },
+  } as unknown as Window & typeof globalThis;
+
+  // Default fetch mock — returns empty CSS
+  mockFetchResponse("");
 }
 
 function restoreGlobals(): void {
   globalThis.MutationObserver = originalMutationObserver;
   globalThis.document = originalDocument;
+  globalThis.fetch = originalFetch;
+  globalThis.window = originalWindow;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock records don't satisfy full MutationRecord interface
@@ -189,6 +214,24 @@ describe("observeStylesheets", () => {
       expect(style.hasAttribute("data-polyfill-rewritten")).toBe(true);
     });
 
+    it("skips a <style> that already has data-polyfill-rewritten", () => {
+      const style = createMockStyleElement("video:playing { color: green }");
+      style.setAttribute("data-polyfill-rewritten", "");
+      const originalContent = style.textContent;
+
+      triggerMutation([
+        {
+          type: "childList",
+          addedNodes: [style],
+          removedNodes: [],
+          target: document.documentElement,
+        },
+      ]);
+
+      // Content should be untouched — the observer skipped it
+      expect(style.textContent).toBe(originalContent);
+    });
+
     it("discovers <style> nested inside a container element", () => {
       const style = createMockStyleElement("video:paused { opacity: 0.5 }");
       const container = createMockContainer([style]);
@@ -207,8 +250,9 @@ describe("observeStylesheets", () => {
       expect(style.hasAttribute("data-polyfill-rewritten")).toBe(true);
     });
 
-    it("processes a new <link> with a loaded sheet immediately", () => {
-      const link = createMockLinkElement({ cssRules: [] });
+    it("processes a new <link> via fetch", async () => {
+      mockFetchResponse("video:playing { color: green }");
+      const link = createMockLinkElement();
 
       triggerMutation([
         {
@@ -219,29 +263,33 @@ describe("observeStylesheets", () => {
         },
       ]);
 
-      // processLinkSheet marks the element after processing
-      expect(link.hasAttribute("data-polyfill-rewritten")).toBe(true);
+      // processLinkSheet is async — wait for it to complete
+      await vi.waitFor(() => {
+        expect(link.hasAttribute("data-polyfill-rewritten")).toBe(true);
+      });
     });
 
-    it("defers processing a new <link> with null sheet via load listener", () => {
-      const link = createMockLinkElement(null);
+    it("discovers <link> nested inside a container element", async () => {
+      mockFetchResponse("video:playing { color: green }");
+      const link = createMockLinkElement();
+      const container = createMockContainer([link]);
 
       triggerMutation([
         {
           type: "childList",
-          addedNodes: [link],
+          addedNodes: [container],
           removedNodes: [],
           target: document.documentElement,
         },
       ]);
 
-      expect(link.addEventListener).toHaveBeenCalledWith("load", expect.any(Function), {
-        once: true,
+      await vi.waitFor(() => {
+        expect(link.hasAttribute("data-polyfill-rewritten")).toBe(true);
       });
     });
 
     it("ignores non-stylesheet link elements", () => {
-      const link = createMockLinkElement(null);
+      const link = createMockLinkElement();
       link.attributes.delete("rel");
       link.attributes.set("rel", "icon");
 
@@ -362,11 +410,25 @@ describe("observeStylesheets", () => {
         { type: "characterData", target: orphanTextNode, addedNodes: [], removedNodes: [] },
       ]);
     });
+
+    it("ignores characterData on a text node whose parent is not a <style>", () => {
+      const divElement = createMockElement("DIV");
+      const textNode = { parentElement: divElement };
+
+      // Should not throw or trigger any processing
+      triggerMutation([
+        { type: "characterData", target: textNode, addedNodes: [], removedNodes: [] },
+      ]);
+
+      expect(divElement.hasAttribute("data-polyfill-rewritten")).toBe(false);
+    });
   });
 
   describe("link href attribute changes", () => {
-    it("removes marker and defers to load event when href changes", () => {
-      const link = createMockLinkElement({ cssRules: [] });
+    it("removes marker and re-processes when href changes", async () => {
+      mockFetchResponse("video:playing { color: green }");
+      const link = createMockLinkElement();
+
       // Simulate initial processing
       triggerMutation([
         {
@@ -376,9 +438,12 @@ describe("observeStylesheets", () => {
           target: document.documentElement,
         },
       ]);
-      expect(link.hasAttribute("data-polyfill-rewritten")).toBe(true);
 
-      // href changes — always defer to load, never process stale sheet
+      await vi.waitFor(() => {
+        expect(link.hasAttribute("data-polyfill-rewritten")).toBe(true);
+      });
+
+      // href changes — re-fetches and re-processes
       triggerMutation([
         {
           type: "attributes",
@@ -389,14 +454,16 @@ describe("observeStylesheets", () => {
         },
       ]);
 
+      // Marker is removed synchronously, then re-added after async processing
       expect(link.hasAttribute("data-polyfill-rewritten")).toBe(false);
-      expect(link.addEventListener).toHaveBeenCalledWith("load", expect.any(Function), {
-        once: true,
+
+      await vi.waitFor(() => {
+        expect(link.hasAttribute("data-polyfill-rewritten")).toBe(true);
       });
     });
 
     it("ignores attribute changes on non-stylesheet links", () => {
-      const link = createMockLinkElement(null);
+      const link = createMockLinkElement();
       link.attributes.delete("rel");
       link.attributes.set("rel", "icon");
 
@@ -411,6 +478,24 @@ describe("observeStylesheets", () => {
       ]);
 
       expect(link.addEventListener).not.toHaveBeenCalled();
+    });
+
+    it("ignores attribute changes on non-link elements with href", () => {
+      const anchor = createMockElement("A");
+      anchor.setAttribute("href", "http://localhost:3000/page");
+
+      // Should not throw or trigger any processing
+      triggerMutation([
+        {
+          type: "attributes",
+          target: anchor,
+          attributeName: "href",
+          addedNodes: [],
+          removedNodes: [],
+        },
+      ]);
+
+      expect(anchor.hasAttribute("data-polyfill-rewritten")).toBe(false);
     });
   });
 

@@ -478,6 +478,25 @@ describe("observeMediaElements", () => {
       expect(element.listeners.size).toBe(0);
     });
 
+    it("gracefully handles non-element nodes in removedNodes", async () => {
+      const observeMediaElements = await importObserve();
+      observeMediaElements(/* unsupported */ new Set(PSEUDO_CLASSES));
+
+      const textNode = { nodeType: 3, tagName: undefined };
+      const commentNode = { nodeType: 8, tagName: undefined };
+
+      // Should not throw
+      triggerMutation([
+        {
+          addedNodes: [] as unknown as NodeList,
+          removedNodes: [
+            textNode as unknown as Node,
+            commentNode as unknown as Node,
+          ] as unknown as NodeList,
+        },
+      ]);
+    });
+
     it("allows re-binding after removal (fresh state)", async () => {
       const element = createMockMediaElement({ paused: false });
       mockDocumentElements = [element];

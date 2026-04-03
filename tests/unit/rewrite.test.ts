@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vite-plus/test";
 import { parse, walk, generate } from "css-tree";
 import type { CssNode, Atrule } from "css-tree";
 import { rewriteCss } from "../../src/rewrite.js";
@@ -272,6 +272,13 @@ describe("rewriteCss", () => {
       const result = rewriteCss("", /* unsupported */ ALL_UNSUPPORTED);
       expect(result).toBeNull();
     });
+
+    it("returns null when generated output is whitespace-only", () => {
+      // CSS with only :volume-locked as a lone selector — the sibling
+      // injection prunes it entirely, leaving an empty output after generate().
+      const result = rewriteCss("video:volume-locked { color: red }", ALL_UNSUPPORTED);
+      expect(result).toBeNull();
+    });
   });
 
   describe("multiple rules", () => {
@@ -310,5 +317,95 @@ describe("rewriteCss", () => {
         "video.media-pseudo-polyfill-buffering",
       ]);
     });
+  });
+});
+
+// --- rewriteSingleStyleElement and rewriteStyleElements ---
+
+interface MockStyleElement {
+  textContent: string | null;
+  hasAttribute: (name: string) => boolean;
+  setAttribute: (name: string, value: string) => void;
+  attributes: Map<string, string>;
+}
+
+function createMockStyleElement(cssText: string): MockStyleElement {
+  const attributes = new Map<string, string>();
+  return {
+    textContent: cssText,
+    hasAttribute(name: string) {
+      return attributes.has(name);
+    },
+    setAttribute(name: string, value: string) {
+      attributes.set(name, value);
+    },
+    attributes,
+  };
+}
+
+describe("rewriteSingleStyleElement", () => {
+  let rewriteSingleStyleElement: typeof import("../../src/rewrite.js").rewriteSingleStyleElement;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const module = await import("../../src/rewrite.js");
+    rewriteSingleStyleElement = module.rewriteSingleStyleElement;
+  });
+
+  it("rewrites textContent and sets data-polyfill-rewritten", () => {
+    const style = createMockStyleElement("video:playing { color: green }");
+
+    rewriteSingleStyleElement(style as unknown as HTMLStyleElement, ALL_UNSUPPORTED);
+
+    expect(style.textContent).toContain("media-pseudo-polyfill-playing");
+    expect(style.attributes.has("data-polyfill-rewritten")).toBe(true);
+  });
+
+  it("does NOT set data-polyfill-rewritten when CSS has no pseudo-classes", () => {
+    const style = createMockStyleElement("div { color: red }");
+
+    rewriteSingleStyleElement(style as unknown as HTMLStyleElement, ALL_UNSUPPORTED);
+
+    expect(style.textContent).toBe("div { color: red }");
+    expect(style.attributes.has("data-polyfill-rewritten")).toBe(false);
+  });
+
+  it("skips style elements with null textContent", () => {
+    const style = createMockStyleElement(null as unknown as string);
+    style.textContent = null;
+
+    rewriteSingleStyleElement(style as unknown as HTMLStyleElement, ALL_UNSUPPORTED);
+
+    expect(style.textContent).toBeNull();
+    expect(style.attributes.has("data-polyfill-rewritten")).toBe(false);
+  });
+});
+
+describe("rewriteStyleElements", () => {
+  const originalDocument = globalThis.document;
+
+  afterEach(() => {
+    globalThis.document = originalDocument;
+  });
+
+  it("queries for unprocessed style elements and rewrites them", async () => {
+    vi.resetModules();
+
+    const style1 = createMockStyleElement("video:playing { color: green }");
+    const style2 = createMockStyleElement("div { color: red }");
+
+    globalThis.document = {
+      querySelectorAll: vi.fn(() => [style1, style2]),
+    } as unknown as Document;
+
+    const module = await import("../../src/rewrite.js");
+    module.rewriteStyleElements(ALL_UNSUPPORTED);
+
+    expect(style1.textContent).toContain("media-pseudo-polyfill-playing");
+    expect(style1.attributes.has("data-polyfill-rewritten")).toBe(true);
+
+    // style2 has no pseudo-classes — left unchanged
+    expect(style2.textContent).toBe("div { color: red }");
+    expect(style2.attributes.has("data-polyfill-rewritten")).toBe(false);
   });
 });

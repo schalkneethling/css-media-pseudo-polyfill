@@ -6,13 +6,13 @@ These pseudo-classes allow styling based on the playback, loading, and sound sta
 
 ## How it works
 
-The polyfill runs in three stages:
+The polyfill runs in four stages:
 
 1. **Feature detection** — Each of the 7 media pseudo-classes is tested individually via `CSS.supports('selector(:name)')`. Only unsupported pseudo-classes are polyfilled. This allows partial support (e.g., Safari may support `:playing` but not `:buffering`).
 
 2. **CSS rewriting** — Inline `<style>` elements are parsed with [css-tree](https://github.com/nicolo-ribaudo/css-tree). For each rule containing a target pseudo-class, a class-based equivalent is injected as a sibling rule immediately after the original in the AST (e.g., `video:playing { ... }` is followed by `video.media-pseudo-polyfill-playing { ... }`). The browser skips the rule it doesn't understand and applies the class-based fallback — a natural progressive enhancement pair.
 
-3. **`<link>` stylesheet rewriting** — Same-origin `<link rel="stylesheet">` elements are rewritten via the CSSOM API. The polyfill walks `sheet.cssRules`, and for each style rule containing a target pseudo-class, builds a class-based equivalent and inserts it via `insertRule()` immediately after the original. Sheets not yet loaded are deferred via a one-time `load` event listener. Cross-origin sheets that throw `SecurityError` on `cssRules` access are skipped gracefully.
+3. **`<link>` stylesheet rewriting** — Same-origin `<link rel="stylesheet">` elements are fetched via the Fetch API and rewritten using the same text-based approach as inline `<style>` elements. The rewritten CSS is injected as a sibling `<style>` element and the original `<link>` is disabled. This avoids the CSSOM approach where browsers silently drop rules containing unrecognised pseudo-class selectors before the polyfill can process them. Cross-origin stylesheets are detected via origin comparison and skipped.
 
 4. **Element observation** — Media elements are discovered via `querySelectorAll` and a `MutationObserver`. Event listeners are attached to each element to track state changes. On every relevant event, the element's state is recomputed and the corresponding polyfill classes are toggled.
 
@@ -102,21 +102,13 @@ Media events do not bubble, so each element requires direct `addEventListener` c
 
 Before attaching listeners, the polyfill checks whether the element is already tracked in the `WeakMap`. This prevents duplicate bindings from rapid DOM reparenting, where the `MutationObserver` may report the same element in both `removedNodes` and `addedNodes` in a single batch.
 
-### CSSOM-based rewriting for `<link>` stylesheets
+### Fetch-based rewriting for `<link>` stylesheets
 
-Same-origin `<link rel="stylesheet">` elements are rewritten via the CSSOM API (`sheet.cssRules` + `insertRule()`) rather than fetching and re-parsing the CSS text. This has significant advantages:
+Same-origin `<link rel="stylesheet">` elements are rewritten by fetching the CSS text and running it through the same `rewriteCss()` function used for inline `<style>` elements. The rewritten output is injected as a `<style>` element immediately after the original `<link>`, which is then disabled.
 
-- **No fetch required** — the browser has already loaded the sheet
-- **No URL resolution problem** — the browser retains the sheet's original URL context, so `url(...)` values in `background-image`, `@font-face`, etc. continue to resolve correctly
-- **Nesting preserved naturally** — `insertRule()` on a `CSSMediaRule`, `CSSSupportsRule`, or `CSSLayerBlockRule` keeps the rule inside its context automatically
+An earlier approach used the CSSOM API (`sheet.cssRules` + `insertRule()`), which avoids an extra network request. However, this has a fundamental flaw: browsers silently drop rules containing unrecognised pseudo-class selectors during CSS parsing. By the time the polyfill walks the CSSOM, the rules it needs to rewrite have already been discarded. The fetch-based approach accesses the raw CSS text before browser parsing, ensuring all rules are available for rewriting.
 
-The algorithm walks `cssRules` forward, tracking an insertion offset. For each matching `CSSStyleRule`, the selector is parsed with css-tree (reusing the same `rewriteSelectorList` helper as the `<style>` path), a class-based rule is built, and `insertRule()` places it immediately after the original. The forward iteration with offset tracking ensures siblings land in the right position without re-processing inserted rules.
-
-Cross-origin sheets that throw `SecurityError` on `cssRules` access are skipped gracefully. Cross-origin support via fetch + URL absolutization is planned for a future phase.
-
-### Shared selector rewriting
-
-Both the `<style>` text path and the `<link>` CSSOM path share the same `rewriteSelectorList` function for the core selector transformation. This ensures consistent handling of `:is()`, `:where()`, `:not()`, `:has()`, and `:volume-locked` pruning across both paths. The `<style>` path operates on a full stylesheet AST, while the `<link>` path parses individual `selectorText` strings from CSSOM rules.
+Cross-origin stylesheets are detected via `new URL(href).origin` comparison against `window.location.origin` and skipped. This covers both relative paths (resolved to absolute by the browser) and explicit absolute URLs to external CDNs.
 
 ## Known limitations
 
@@ -126,6 +118,4 @@ Both the `<style>` text path and the `<link>` CSSOM path share the same `rewrite
 
 - **FOUC window.** Stylesheet rewriting runs when the polyfill is invoked (at `DOMContentLoaded` for the default entry point). There is a window between first paint and polyfill initialization where pseudo-class-based styles are not applied. Use the `"./fn"` entry point from a synchronous `<script>` in `<head>` to minimize this gap.
 
-- **Cross-origin `<link>` stylesheets are not rewritten.** Same-origin `<link>` stylesheets are rewritten via CSSOM. Cross-origin sheets that block `cssRules` access are skipped. Support via fetch + URL absolutization is planned.
-
-- **No dynamic stylesheet observation yet.** Stylesheets added or mutated after initialization are not rewritten. This is planned.
+- **Cross-origin `<link>` stylesheets are not rewritten.** The polyfill only fetches and rewrites same-origin stylesheets. Cross-origin sheets served from external CDNs are skipped.

@@ -1,6 +1,9 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  test: {
+    exclude: ["tests/e2e/**"],
+  },
   staged: {
     "*": "vp check --fix",
   },

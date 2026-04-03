@@ -47,9 +47,9 @@ function processAddedNode(node: Node, unsupported: Set<string>): void {
     return;
   }
 
-  if (isStyleElement(node)) {
+  if (isStyleElement(node) && !node.hasAttribute("data-polyfill-rewritten")) {
     rewriteStyleWithGuard(node, unsupported);
-  } else if (isStylesheetLink(node)) {
+  } else if (isStylesheetLink(node) && !node.hasAttribute("data-polyfill-rewritten")) {
     processLinkElement(node, unsupported);
   }
 
@@ -103,21 +103,11 @@ function handleCharacterDataMutation(target: Node, unsupported: Set<string>): vo
 }
 
 /**
- * Process a <link rel="stylesheet"> element, deferring to the load event
- * if the sheet is not yet available.
+ * Process a <link rel="stylesheet"> element. processLinkSheet handles
+ * fetching the CSS text directly, so no load-event deferral is needed.
  */
 function processLinkElement(link: HTMLLinkElement, unsupported: Set<string>): void {
-  if (link.sheet !== null) {
-    processLinkSheet(link, unsupported);
-  } else {
-    link.addEventListener(
-      "load",
-      () => {
-        processLinkSheet(link, unsupported);
-      },
-      { once: true },
-    );
-  }
+  processLinkSheet(link, unsupported);
 }
 
 /**
@@ -147,13 +137,7 @@ export function observeStylesheets(unsupported: Set<string>): void {
         const target = record.target;
         if (isElement(target) && isStylesheetLink(target)) {
           target.removeAttribute("data-polyfill-rewritten");
-          target.addEventListener(
-            "load",
-            () => {
-              processLinkSheet(target, unsupported);
-            },
-            { once: true },
-          );
+          processLinkSheet(target, unsupported);
         }
       }
     }

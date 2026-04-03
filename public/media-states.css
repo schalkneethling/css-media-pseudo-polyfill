@@ -1,0 +1,45 @@
+/* Audio pseudo-class styles — served as a linked stylesheet to test rewriteLinkStylesheets */
+
+/* ── Playing state ── */
+.audio-card:has(audio:playing) {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(201, 148, 62, 0.08), rgba(224, 121, 65, 0.04));
+}
+
+.audio-card:has(audio:playing) .track-title {
+  color: var(--gold-light);
+}
+
+.audio-card:has(audio:playing) .eq-bar {
+  animation-play-state: running;
+}
+
+.audio-card:has(audio:playing) .badge--playing {
+  opacity: 1;
+}
+
+/* ── Paused state ── */
+.audio-card:has(audio:paused) .badge--paused {
+  opacity: 1;
+}
+
+.audio-card:has(audio:paused) .eq-bar {
+  animation-play-state: paused;
+}
+
+/* ── Muted state ── */
+.audio-card:has(audio:muted) {
+  border-color: var(--warm-gray);
+}
+
+.audio-card:has(audio:muted) .badge--muted {
+  opacity: 1;
+}
+
+.audio-card:has(audio:muted) .track-title {
+  opacity: 0.4;
+}
+
+.audio-card:has(audio:muted) .eq-bar {
+  opacity: 0.2;
+}

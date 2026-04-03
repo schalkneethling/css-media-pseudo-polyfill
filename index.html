@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ÉCLAT STUDIOS — Los Angeles</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Linked stylesheet — tests rewriteLinkStylesheets path -->
+    <link rel="stylesheet" href="/media-states.css" />
+
+    <!-- Polyfill entry point -->
+    <script type="module" src="/src/index.ts"></script>
+
+    <style>
+      /* ── Design tokens ── */
+      :root {
+        --obsidian: #0a0806;
+        --charcoal: #1a1612;
+        --warm-gray: #2e2822;
+        --gold: #c9943e;
+        --gold-light: #dbb56c;
+        --sunset: #e07941;
+        --sand: #c4b49a;
+        --cream: #f0e6d6;
+        --font-display: "Bebas Neue", sans-serif;
+        --font-body: "Cormorant Garamond", serif;
+      }
+
+      /* ── Reset & base ── */
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--obsidian);
+        color: var(--cream);
+        font-family: var(--font-body);
+        font-size: 18px;
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+
+      /* ── Film grain overlay ── */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+        opacity: 0.025;
+        pointer-events: none;
+        z-index: 9999;
+      }
+
+      /* ── Hero ── */
+      .hero {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+        background:
+          radial-gradient(ellipse 80% 50% at 50% 40%, rgba(201, 148, 62, 0.12), transparent),
+          radial-gradient(ellipse 60% 60% at 70% 60%, rgba(224, 121, 65, 0.06), transparent),
+          linear-gradient(175deg, var(--charcoal) 0%, var(--obsidian) 100%);
+      }
+
+      .hero-rule {
+        width: 120px;
+        height: 1px;
+        border: none;
+        background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        margin-bottom: 1.5rem;
+        opacity: 0;
+        animation: fade-in 1s 0.2s ease forwards;
+      }
+
+      .studio-name {
+        font-family: var(--font-display);
+        font-size: clamp(4rem, 12vw, 10rem);
+        letter-spacing: 0.08em;
+        line-height: 0.95;
+        color: var(--cream);
+        opacity: 0;
+        animation: fade-up 1s 0.4s ease forwards;
+      }
+
+      .studio-location {
+        font-family: var(--font-display);
+        font-size: clamp(1rem, 2.5vw, 1.5rem);
+        letter-spacing: 0.35em;
+        color: var(--gold);
+        margin-top: 0.25rem;
+        opacity: 0;
+        animation: fade-up 1s 0.6s ease forwards;
+      }
+
+      .studio-tagline {
+        font-family: var(--font-body);
+        font-style: italic;
+        font-size: clamp(1.1rem, 2vw, 1.4rem);
+        color: var(--sand);
+        margin-top: 2rem;
+        opacity: 0;
+        animation: fade-up 1s 0.8s ease forwards;
+      }
+
+      /* ── Sections ── */
+      .section {
+        padding: 5rem 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .section-label {
+        font-family: var(--font-display);
+        font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+        letter-spacing: 0.4em;
+        color: var(--gold);
+        margin-bottom: 0.5rem;
+      }
+
+      .section-title {
+        font-family: var(--font-display);
+        font-size: clamp(2.5rem, 6vw, 4.5rem);
+        letter-spacing: 0.06em;
+        line-height: 1;
+        margin-bottom: 1rem;
+      }
+
+      .section-rule {
+        width: 60px;
+        height: 1px;
+        border: none;
+        background: var(--gold);
+        margin-bottom: 3rem;
+      }
+
+      /* ── Divider ── */
+      .divider {
+        height: 1px;
+        max-width: 1200px;
+        margin: 0 auto;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--warm-gray) 20%,
+          var(--warm-gray) 80%,
+          transparent
+        );
+      }
+
+      /* ── Video grid ── */
+      .video-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+      }
+
+      .video-card {
+        position: relative;
+        background: var(--charcoal);
+        border-radius: 2px;
+        overflow: hidden;
+        transition: transform 0.4s ease;
+      }
+
+      .video-card:hover {
+        transform: translateY(-4px);
+      }
+
+      .video-card video {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
+        background: #000;
+        transition:
+          filter 0.4s ease,
+          box-shadow 0.4s ease;
+      }
+
+      .video-card .card-info {
+        padding: 1.25rem 1.5rem;
+      }
+
+      .video-card .card-title {
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        letter-spacing: 0.08em;
+      }
+
+      .video-card .card-desc {
+        font-style: italic;
+        color: var(--sand);
+        font-size: 0.95rem;
+        margin-top: 0.25rem;
+      }
+
+      /* ── State badges ── */
+      .state-badges {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem 0;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-family: var(--font-display);
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        padding: 0.2rem 0.6rem;
+        border-radius: 1px;
+        border: 1px solid var(--warm-gray);
+        color: var(--sand);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .badge-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--warm-gray);
+      }
+
+      .badge--playing .badge-dot {
+        background: var(--gold);
+      }
+
+      .badge--paused .badge-dot {
+        background: var(--sand);
+      }
+
+      .badge--seeking .badge-dot {
+        background: var(--sunset);
+      }
+
+      .badge--muted .badge-dot {
+        background: #a04030;
+      }
+
+      /* ── Video pseudo-class styles (tests rewriteStyleElements path) ── */
+      video:playing {
+        box-shadow: 0 0 40px rgba(201, 148, 62, 0.35);
+      }
+
+      video:paused {
+        filter: brightness(0.6) saturate(0.7);
+      }
+
+      video:seeking {
+        outline: 2px solid var(--sunset);
+        outline-offset: -2px;
+      }
+
+      video:muted {
+        filter: saturate(0.2) brightness(0.8);
+      }
+
+      .video-card:has(video:playing) .badge--playing {
+        opacity: 1;
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+
+      .video-card:has(video:paused) .badge--paused {
+        opacity: 1;
+      }
+
+      .video-card:has(video:seeking) .badge--seeking {
+        opacity: 1;
+        border-color: var(--sunset);
+        color: var(--sunset);
+        animation: pulse-border 0.6s ease infinite alternate;
+      }
+
+      .video-card:has(video:muted) .badge--muted {
+        opacity: 1;
+        border-color: #a04030;
+        color: #a04030;
+      }
+
+      /* ── Audio grid ── */
+      .audio-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .audio-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        background: var(--charcoal);
+        border: 1px solid var(--warm-gray);
+        border-radius: 2px;
+        padding: 1.25rem 1.5rem;
+        transition:
+          border-color 0.4s ease,
+          background 0.4s ease;
+      }
+
+      .track-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .audio-card audio {
+        width: 100%;
+        height: 36px;
+        filter: invert(0.85) sepia(0.2) hue-rotate(10deg);
+      }
+
+      .audio-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .track-title {
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        letter-spacing: 0.1em;
+        transition: color 0.4s ease;
+      }
+
+      .track-artist {
+        font-style: italic;
+        font-size: 0.85rem;
+        color: var(--sand);
+        opacity: 0.7;
+      }
+
+      /* ── Equalizer bars ── */
+      .eq-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+
+      .eq-bar {
+        width: 3px;
+        background: var(--gold);
+        border-radius: 1px;
+        transition: opacity 0.3s ease;
+        animation-play-state: paused;
+      }
+
+      .eq-bar:nth-child(1) {
+        height: 40%;
+        animation: eq-bounce-1 0.45s ease-in-out infinite alternate;
+      }
+
+      .eq-bar:nth-child(2) {
+        height: 70%;
+        animation: eq-bounce-2 0.55s ease-in-out infinite alternate;
+      }
+
+      .eq-bar:nth-child(3) {
+        height: 50%;
+        animation: eq-bounce-3 0.4s ease-in-out infinite alternate;
+      }
+
+      .eq-bar:nth-child(4) {
+        height: 85%;
+        animation: eq-bounce-4 0.5s ease-in-out infinite alternate;
+      }
+
+      .eq-bar:nth-child(5) {
+        height: 30%;
+        animation: eq-bounce-1 0.6s ease-in-out infinite alternate;
+      }
+
+      .audio-badges {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.4rem;
+      }
+
+      /* ── Footer ── */
+      .footer {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--warm-gray);
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+
+      .footer a {
+        color: var(--gold);
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      /* ── Animations ── */
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes fade-up {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse-border {
+        from {
+          border-color: var(--sunset);
+        }
+        to {
+          border-color: rgba(224, 121, 65, 0.3);
+        }
+      }
+
+      @keyframes eq-bounce-1 {
+        from {
+          height: 40%;
+        }
+        to {
+          height: 80%;
+        }
+      }
+
+      @keyframes eq-bounce-2 {
+        from {
+          height: 70%;
+        }
+        to {
+          height: 30%;
+        }
+      }
+
+      @keyframes eq-bounce-3 {
+        from {
+          height: 50%;
+        }
+        to {
+          height: 90%;
+        }
+      }
+
+      @keyframes eq-bounce-4 {
+        from {
+          height: 85%;
+        }
+        to {
+          height: 45%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── Hero ── -->
+    <header class="hero">
+      <hr class="hero-rule" />
+      <h1 class="studio-name">ÉCLAT STUDIOS</h1>
+      <p class="studio-location">LOS ANGELES</p>
+      <p class="studio-tagline">Where vision meets frequency</p>
+    </header>
+
+    <!-- ── The Reel ── -->
+    <section class="section" aria-labelledby="reel-title">
+      <p class="section-label">PORTFOLIO</p>
+      <h2 class="section-title" id="reel-title">THE REEL</h2>
+      <hr class="section-rule" />
+
+      <div class="video-grid">
+        <div class="video-card">
+          <video controls preload="metadata" data-testid="video-beach">
+            <source src="/beach.mp4" type="video/mp4" />
+          </video>
+          <div class="state-badges">
+            <span class="badge badge--playing" data-testid="video-beach-playing"
+              ><span class="badge-dot"></span>PLAYING</span
+            >
+            <span class="badge badge--paused" data-testid="video-beach-paused"
+              ><span class="badge-dot"></span>PAUSED</span
+            >
+            <span class="badge badge--seeking" data-testid="video-beach-seeking"
+              ><span class="badge-dot"></span>SEEKING</span
+            >
+            <span class="badge badge--muted" data-testid="video-beach-muted"
+              ><span class="badge-dot"></span>MUTED</span
+            >
+          </div>
+          <div class="card-info">
+            <h3 class="card-title">PACIFIC DAWN</h3>
+            <p class="card-desc">Golden hour on the coast</p>
+          </div>
+        </div>
+
+        <div class="video-card">
+          <video controls preload="metadata" data-testid="video-blossoms">
+            <source src="/blossoms.mp4" type="video/mp4" />
+          </video>
+          <div class="state-badges">
+            <span class="badge badge--playing" data-testid="video-blossoms-playing"
+              ><span class="badge-dot"></span>PLAYING</span
+            >
+            <span class="badge badge--paused" data-testid="video-blossoms-paused"
+              ><span class="badge-dot"></span>PAUSED</span
+            >
+            <span class="badge badge--seeking" data-testid="video-blossoms-seeking"
+              ><span class="badge-dot"></span>SEEKING</span
+            >
+            <span class="badge badge--muted" data-testid="video-blossoms-muted"
+              ><span class="badge-dot"></span>MUTED</span
+            >
+          </div>
+          <div class="card-info">
+            <h3 class="card-title">IN BLOOM</h3>
+            <p class="card-desc">Spring unfolds in Griffith Park</p>
+          </div>
+        </div>
+
+        <div class="video-card">
+          <video controls preload="metadata" data-testid="video-border-collie">
+            <source src="/border-collie.mp4" type="video/mp4" />
+          </video>
+          <div class="state-badges">
+            <span class="badge badge--playing" data-testid="video-border-collie-playing"
+              ><span class="badge-dot"></span>PLAYING</span
+            >
+            <span class="badge badge--paused" data-testid="video-border-collie-paused"
+              ><span class="badge-dot"></span>PAUSED</span
+            >
+            <span class="badge badge--seeking" data-testid="video-border-collie-seeking"
+              ><span class="badge-dot"></span>SEEKING</span
+            >
+            <span class="badge badge--muted" data-testid="video-border-collie-muted"
+              ><span class="badge-dot"></span>MUTED</span
+            >
+          </div>
+          <div class="card-info">
+            <h3 class="card-title">COMPANION</h3>
+            <p class="card-desc">Loyalty in motion</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ── Soundscapes ── -->
+    <section class="section" aria-labelledby="sound-title">
+      <p class="section-label">SOUND DESIGN</p>
+      <h2 class="section-title" id="sound-title">SOUNDSCAPES</h2>
+      <hr class="section-rule" />
+
+      <div class="audio-grid">
+        <div class="audio-card">
+          <div class="audio-info">
+            <div class="track-title-row">
+              <div class="eq-bars">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+              </div>
+              <p class="track-title">CATHEDRAL OF MY OWN NAME</p>
+            </div>
+            <p class="track-artist">Ambient Longform</p>
+            <div class="audio-badges">
+              <span class="badge badge--playing" data-testid="audio-cathedral-playing"
+                ><span class="badge-dot"></span>PLAYING</span
+              >
+              <span class="badge badge--paused" data-testid="audio-cathedral-paused"
+                ><span class="badge-dot"></span>PAUSED</span
+              >
+              <span class="badge badge--muted" data-testid="audio-cathedral-muted"
+                ><span class="badge-dot"></span>MUTED</span
+              >
+            </div>
+          </div>
+          <audio controls preload="metadata" data-testid="audio-cathedral">
+            <source src="/cathedral-of-my-own-name.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+
+        <div class="audio-card">
+          <div class="audio-info">
+            <div class="track-title-row">
+              <div class="eq-bars">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+              </div>
+              <p class="track-title">FLOCK</p>
+            </div>
+            <p class="track-artist">Field Recording</p>
+            <div class="audio-badges">
+              <span class="badge badge--playing" data-testid="audio-flock-playing"
+                ><span class="badge-dot"></span>PLAYING</span
+              >
+              <span class="badge badge--paused" data-testid="audio-flock-paused"
+                ><span class="badge-dot"></span>PAUSED</span
+              >
+              <span class="badge badge--muted" data-testid="audio-flock-muted"
+                ><span class="badge-dot"></span>MUTED</span
+              >
+            </div>
+          </div>
+          <audio controls preload="metadata" data-testid="audio-flock">
+            <source src="/flock.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+
+        <div class="audio-card">
+          <div class="audio-info">
+            <div class="track-title-row">
+              <div class="eq-bars">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+              </div>
+              <p class="track-title">SYNAPSE OVERLOAD</p>
+            </div>
+            <p class="track-artist">Electronic Score</p>
+            <div class="audio-badges">
+              <span class="badge badge--playing" data-testid="audio-synapse-playing"
+                ><span class="badge-dot"></span>PLAYING</span
+              >
+              <span class="badge badge--paused" data-testid="audio-synapse-paused"
+                ><span class="badge-dot"></span>PAUSED</span
+              >
+              <span class="badge badge--muted" data-testid="audio-synapse-muted"
+                ><span class="badge-dot"></span>MUTED</span
+              >
+            </div>
+          </div>
+          <audio controls preload="metadata" data-testid="audio-synapse">
+            <source src="/synapse-overload.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer ── -->
+    <footer class="footer">
+      <p>
+        Powered by
+        <a href="https://github.com/schalkneethling/css-media-pseudo-polyfill"
+          >css-media-pseudo-polyfill</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

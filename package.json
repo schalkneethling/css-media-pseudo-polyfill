@@ -2,8 +2,29 @@
   "name": "css-media-pseudo-polyfill",
   "version": "0.0.1",
   "description": "A CSS polyfill for media pseudo-classes (:playing, :paused, :seeking, :buffering, :stalled, :muted)",
+  "keywords": [
+    "audio",
+    "buffering",
+    "css",
+    "media",
+    "muted",
+    "paused",
+    "playing",
+    "polyfill",
+    "pseudo-classes",
+    "seeking",
+    "video"
+  ],
+  "homepage": "https://github.com/schalkneethling/css-media-pseudo-polyfill",
+  "bugs": {
+    "url": "https://github.com/schalkneethling/css-media-pseudo-polyfill/issues"
+  },
   "license": "MIT",
-  "author": "",
+  "author": "Schalk Neethling",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schalkneethling/css-media-pseudo-polyfill"
+  },
   "files": [
     "dist"
   ],
