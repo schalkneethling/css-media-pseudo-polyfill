@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/schalkneethling/css-media-pseudo-polyfill/compare/v1.0.0...v1.0.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* address no-floating-promises warnings and formatting ([8a515a9](https://github.com/schalkneethling/css-media-pseudo-polyfill/commit/8a515a92946a696cc84cebd0bbec8bc442eb9e54))
+* update ci config and playwright ([3ae28c5](https://github.com/schalkneethling/css-media-pseudo-polyfill/commit/3ae28c56e02abb27c08b565576692efb2e696488))
+
 ## 1.0.0 (2026-04-03)
 
 ### Bug Fixes
