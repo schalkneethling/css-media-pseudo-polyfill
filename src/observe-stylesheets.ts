@@ -107,7 +107,7 @@ function handleCharacterDataMutation(target: Node, unsupported: Set<string>): vo
  * fetching the CSS text directly, so no load-event deferral is needed.
  */
 function processLinkElement(link: HTMLLinkElement, unsupported: Set<string>): void {
-  processLinkSheet(link, unsupported);
+  void processLinkSheet(link, unsupported);
 }
 
 /**
@@ -137,7 +137,7 @@ export function observeStylesheets(unsupported: Set<string>): void {
         const target = record.target;
         if (isElement(target) && isStylesheetLink(target)) {
           target.removeAttribute("data-polyfill-rewritten");
-          processLinkSheet(target, unsupported);
+          void processLinkSheet(target, unsupported);
         }
       }
     }

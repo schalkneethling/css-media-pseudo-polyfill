@@ -16,7 +16,7 @@ test.describe("video state transitions", () => {
       const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
       return new Promise<void>((resolve) => {
         video.addEventListener("playing", () => resolve(), { once: true });
-        video.play();
+        void video.play();
       });
     });
 
@@ -29,7 +29,7 @@ test.describe("video state transitions", () => {
       const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
       return new Promise<void>((resolve) => {
         video.addEventListener("playing", () => resolve(), { once: true });
-        video.play();
+        void video.play();
       });
     });
 

@@ -21,20 +21,16 @@ jobs:
       - uses: actions/checkout@v4
         if: ${{ steps.release.outputs.release_created }}
 
-      - uses: pnpm/action-setup@v4
-        if: ${{ steps.release.outputs.release_created }}
-
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1
         if: ${{ steps.release.outputs.release_created }}
         with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
+          node-version: "22"
+          cache: true
 
-      - run: pnpm install
+      - run: vp install
         if: ${{ steps.release.outputs.release_created }}
 
-      - run: pnpm build
+      - run: vp pack
         if: ${{ steps.release.outputs.release_created }}
 
       - run: pnpm publish --no-git-checks

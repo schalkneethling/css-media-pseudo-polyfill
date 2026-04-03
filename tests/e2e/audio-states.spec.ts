@@ -16,7 +16,7 @@ test.describe("audio state transitions", () => {
       const audio = document.querySelector<HTMLAudioElement>('[data-testid="audio-cathedral"]')!;
       return new Promise<void>((resolve) => {
         audio.addEventListener("playing", () => resolve(), { once: true });
-        audio.play();
+        void audio.play();
       });
     });
 
@@ -29,7 +29,7 @@ test.describe("audio state transitions", () => {
       const audio = document.querySelector<HTMLAudioElement>('[data-testid="audio-cathedral"]')!;
       return new Promise<void>((resolve) => {
         audio.addEventListener("playing", () => resolve(), { once: true });
-        audio.play();
+        void audio.play();
       });
     });
 
@@ -77,7 +77,7 @@ test.describe("audio state transitions", () => {
       const audio = document.querySelector<HTMLAudioElement>('[data-testid="audio-cathedral"]')!;
       return new Promise<void>((resolve) => {
         audio.addEventListener("playing", () => resolve(), { once: true });
-        audio.play();
+        void audio.play();
       });
     });
 
