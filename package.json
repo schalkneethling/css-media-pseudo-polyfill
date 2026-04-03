@@ -37,7 +37,7 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
-    "dev:demo": "vite",
+    "dev:demo": "pnpm exec vite",
     "test": "vp test",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
