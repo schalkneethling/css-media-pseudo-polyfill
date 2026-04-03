@@ -27,7 +27,7 @@ jobs:
         run: vp test
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        run: vp exec playwright install --with-deps chromium
 
       - name: E2E tests
-        run: pnpm exec playwright test
+        run: vp exec playwright test

@@ -16,11 +16,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev:demo --port 5173",
+    command: "npx vite --port 5173",
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
-    stdout: "pipe",
-    stderr: "pipe",
   },
 });
