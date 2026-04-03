@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/schalkneethling/css-media-pseudo-polyfill/compare/v1.0.1...v1.0.2) (2026-04-03)
+
+
+### Bug Fixes
+
+* update release workflow, package.json, and playwright config ([6c3878b](https://github.com/schalkneethling/css-media-pseudo-polyfill/commit/6c3878b1ac7678e2831c540f047b0dfc47c8c0cc))
+* update release workflow, package.json, and playwright config ([2d35ae8](https://github.com/schalkneethling/css-media-pseudo-polyfill/commit/2d35ae8cbfd50f857704520c5ad3b6d3628254d7))
+
 ## [1.0.1](https://github.com/schalkneethling/css-media-pseudo-polyfill/compare/v1.0.0...v1.0.1) (2026-04-03)
 
 ### Bug Fixes
