@@ -37,7 +37,9 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
+    "dev:demo": "vite",
     "test": "vp test",
+    "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "release": "bumpp",
     "prepublishOnly": "pnpm run build",
