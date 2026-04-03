@@ -74,6 +74,6 @@ export function rewriteLinkStylesheets(unsupported: Set<string>): void {
   );
 
   for (const link of links) {
-    processLinkSheet(link, unsupported);
+    void processLinkSheet(link, unsupported);
   }
 }
