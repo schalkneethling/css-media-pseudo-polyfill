@@ -1,6 +1,6 @@
 {
   "name": "css-media-pseudo-polyfill",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A CSS polyfill for media pseudo-classes (:playing, :paused, :seeking, :buffering, :stalled, :muted)",
   "keywords": [
     "audio",
