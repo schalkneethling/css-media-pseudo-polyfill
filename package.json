@@ -41,7 +41,7 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "release": "bumpp",
-    "prepublishOnly": "pnpm run build",
+    "prepublishOnly": "vp pack",
     "prepare": "vp config"
   },
   "dependencies": {
