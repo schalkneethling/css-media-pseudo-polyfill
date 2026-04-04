@@ -1,42 +1,57 @@
-name: Release
+name: Release Please
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: Run release-please
         id: release
+        uses: googleapis/release-please-action@v4
         with:
-          release-type: node
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
 
-      - uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Check out repository
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        uses: actions/checkout@v4
 
-      - uses: voidzero-dev/setup-vp@v1
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Set up Vite+
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
           cache: true
 
-      - uses: pnpm/action-setup@v4
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Set up pnpm
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        uses: pnpm/action-setup@v4
 
-      - run: vp install
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Set up Node.js registry
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
 
-      - run: vp pack
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Install dependencies
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        run: vp install --frozen-lockfile
 
-      - run: pnpm publish --no-git-checks
-        if: ${{ steps.release.outputs.release_created }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Build
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        run: vp pack
+
+      - name: Publish
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        run: pnpm publish --access public --no-git-checks
