@@ -23,7 +23,7 @@
   "author": "Schalk Neethling",
   "repository": {
     "type": "git",
-    "url": "https://github.com/schalkneethling/css-media-pseudo-polyfill"
+    "url": "git+https://github.com/schalkneethling/css-media-pseudo-polyfill.git"
   },
   "files": [
     "dist"
