@@ -2,7 +2,8 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "@schalkneethling/css-media-pseudo-polyfill"
+      "package-name": "@schalkneethling/css-media-pseudo-polyfill",
+      "skip-changelog": true
     }
   }
 }
