@@ -229,6 +229,112 @@ describe("processLinkSheet", () => {
   });
 });
 
+describe("relative url() resolution", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setupGlobalMocks();
+  });
+
+  afterEach(() => {
+    teardownGlobalMocks();
+  });
+
+  async function importProcessLinkSheet() {
+    const module = await import("../../src/rewrite-link.js");
+    return module.processLinkSheet as (link: unknown, unsupported: Set<string>) => Promise<void>;
+  }
+
+  it("resolves relative url() paths against the stylesheet URL", async () => {
+    mockFetch("video:playing { background-image: url('../images/bg.png') }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    // css-tree strips quotes from url() values during rewriting
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(http://localhost:3000/images/bg.png)");
+    expect(injected).not.toContain("../images/bg.png");
+  });
+
+  it("resolves unquoted relative url() paths", async () => {
+    mockFetch("video:playing { background: url(../images/bg.png) }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(http://localhost:3000/images/bg.png)");
+  });
+
+  it("resolves double-quoted relative url() paths", async () => {
+    mockFetch('video:playing { background: url("../images/bg.png") }');
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(http://localhost:3000/images/bg.png)");
+  });
+
+  it("does not modify data: URIs", async () => {
+    mockFetch("video:playing { background: url(data:image/png;base64,abc123) }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(data:image/png;base64,abc123)");
+  });
+
+  it("does not modify absolute https:// URLs", async () => {
+    mockFetch("video:playing { background: url('https://cdn.example.com/bg.png') }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(https://cdn.example.com/bg.png)");
+  });
+
+  it("does not modify absolute http:// URLs", async () => {
+    mockFetch("video:playing { background: url('http://cdn.example.com/bg.png') }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(http://cdn.example.com/bg.png)");
+  });
+
+  it("does not modify root-relative URLs", async () => {
+    mockFetch("video:playing { background: url('/images/bg.png') }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(/images/bg.png)");
+  });
+
+  it("resolves sibling-relative url() paths", async () => {
+    mockFetch("video:playing { background: url('font.woff2') }");
+    const link = createMockLinkElement("http://localhost:3000/styles/theme.css");
+    const processLinkSheet = await importProcessLinkSheet();
+
+    await processLinkSheet(link, ALL_UNSUPPORTED);
+
+    const injected = mockCreatedStyle.textContent!;
+    expect(injected).toContain("url(http://localhost:3000/styles/font.woff2)");
+  });
+});
+
 describe("rewriteLinkStylesheets", () => {
   beforeEach(() => {
     vi.resetModules();

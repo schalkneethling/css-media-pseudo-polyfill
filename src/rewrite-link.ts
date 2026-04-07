@@ -1,6 +1,24 @@
 import { rewriteCss } from "./rewrite.js";
 
 /**
+ * Resolve relative url() references in CSS text to absolute URLs, using
+ * the stylesheet's own URL as the base. This is necessary because when CSS
+ * is fetched from a <link> and re-injected as an inline <style>, the browser
+ * resolves url() references relative to the document URL rather than the
+ * original stylesheet URL, breaking any relative paths (e.g. url('../images/bg.png')).
+ *
+ * Data URIs and absolute URLs (https?:, //, /) are left untouched.
+ */
+function resolveUrls(cssText: string, base: string): string {
+  return cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, path) => {
+    if (/^(?:data:|https?:|\/)/.test(path)) {
+      return match;
+    }
+    return `url(${quote}${new URL(path, base).href}${quote})`;
+  });
+}
+
+/**
  * Check whether a stylesheet URL is same-origin. The browser resolves
  * relative hrefs to absolute URLs on the HTMLLinkElement.href property,
  * so comparing the origin portion covers both relative paths and
@@ -47,6 +65,7 @@ export async function processLinkSheet(
     return;
   }
 
+  cssText = resolveUrls(cssText, href);
   const rewritten = rewriteCss(cssText, unsupported);
   link.setAttribute("data-polyfill-rewritten", "");
 
