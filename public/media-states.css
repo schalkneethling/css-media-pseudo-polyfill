@@ -43,3 +43,27 @@
 .audio-card:has(audio:muted) .eq-bar {
   opacity: 0.2;
 }
+
+/* ── Buffering state ── */
+.audio-card:has(audio:buffering) {
+  border-color: var(--sunset);
+}
+
+.audio-card:has(audio:buffering) .badge--buffering {
+  opacity: 1;
+  border-color: var(--sunset);
+  color: var(--sunset);
+  animation: pulse-border 0.6s ease infinite alternate;
+}
+
+.audio-card:has(audio:buffering) .eq-bar {
+  animation-play-state: paused;
+  opacity: 0.5;
+}
+
+/* ── Stalled state ── */
+.audio-card:has(audio:stalled) .badge--stalled {
+  opacity: 1;
+  border-color: #c04040;
+  color: #c04040;
+}
