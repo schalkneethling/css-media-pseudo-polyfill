@@ -25,6 +25,28 @@ The polyfill runs in four stages:
 
 The `"./fn"` entry point is useful when you need to run the polyfill earlier (e.g., from a synchronous `<script>` in `<head>`) to minimize the flash of unstyled content (FOUC).
 
+**Default entry point** — auto-applies on `DOMContentLoaded`:
+
+```js
+import "@schalkneethling/css-media-pseudo-polyfill";
+```
+
+**`"./fn"` entry point** — call `polyfill()` manually, e.g. from a synchronous `<script>` in `<head>` to minimize FOUC:
+
+```html
+<script type="module">
+  import { polyfill } from "@schalkneethling/css-media-pseudo-polyfill/fn";
+  polyfill();
+</script>
+```
+
+Or from a module bundler:
+
+```js
+import { polyfill } from "@schalkneethling/css-media-pseudo-polyfill/fn";
+polyfill();
+```
+
 ## Spec references
 
 The pseudo-class definitions and their DOM conditions come from the [WHATWG HTML spec](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-muted):
