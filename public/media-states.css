@@ -49,10 +49,6 @@
   border-color: var(--sunset);
 }
 
-.audio-card:has(audio:buffering) .badge--playing {
-  display: none;
-}
-
 .audio-card:has(audio:buffering) .badge--buffering {
   display: inline-flex;
   border-color: var(--sunset);

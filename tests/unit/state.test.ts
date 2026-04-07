@@ -72,28 +72,28 @@ describe("computeStates", () => {
     },
     {
       ...baseCase,
-      name: "playing and buffering (loading with current data)",
+      name: "buffering (loading with current data)",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
-      expected: ["playing", "buffering"],
+      expected: ["buffering"],
     },
     {
       ...baseCase,
-      name: "playing, buffering, and stalled",
+      name: "buffering and stalled",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
       isStalledFlag: true,
-      expected: ["playing", "buffering", "stalled"],
+      expected: ["buffering", "stalled"],
     },
     {
       ...baseCase,
-      name: "all active states: playing, buffering, stalled, seeking, muted",
+      name: "all active states: buffering, stalled, seeking, muted",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
       seeking: true,
       muted: true,
       isStalledFlag: true,
-      expected: ["playing", "buffering", "stalled", "seeking", "muted"],
+      expected: ["buffering", "stalled", "seeking", "muted"],
     },
     {
       ...baseCase,
@@ -139,7 +139,7 @@ describe("computeStates", () => {
       expect(states.has("playing")).toBe(true);
     });
 
-    it("buffering implies playing (paused element never buffering)", () => {
+    it("paused element never buffering", () => {
       const element = createMockElement({
         paused: true,
         networkState: NETWORK_LOADING,
@@ -150,6 +150,19 @@ describe("computeStates", () => {
       const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(false);
       expect(states.has("paused")).toBe(true);
+    });
+
+    it("buffering and playing are mutually exclusive", () => {
+      const element = createMockElement({
+        paused: false,
+        networkState: NETWORK_LOADING,
+        readyState: HAVE_CURRENT_DATA,
+        seeking: false,
+        muted: false,
+      });
+      const states = computeStates(element, /* isStalledFlag */ false);
+      expect(states.has("buffering")).toBe(true);
+      expect(states.has("playing")).toBe(false);
     });
 
     it("playing and paused are mutually exclusive", () => {

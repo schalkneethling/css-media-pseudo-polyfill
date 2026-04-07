@@ -230,10 +230,10 @@ describe("observeMediaElements", () => {
       observeMediaElements(/* unsupported */ new Set(PSEUDO_CLASSES));
 
       const activeClasses = getActiveClasses(element);
-      expect(activeClasses.has(`${CLASS_PREFIX}playing`)).toBe(true);
       expect(activeClasses.has(`${CLASS_PREFIX}buffering`)).toBe(true);
       expect(activeClasses.has(`${CLASS_PREFIX}seeking`)).toBe(true);
       expect(activeClasses.has(`${CLASS_PREFIX}muted`)).toBe(true);
+      expect(activeClasses.has(`${CLASS_PREFIX}playing`)).toBe(false);
       expect(activeClasses.has(`${CLASS_PREFIX}paused`)).toBe(false);
       // volume-locked is never set by computeStates
       expect(activeClasses.has(`${CLASS_PREFIX}volume-locked`)).toBe(false);

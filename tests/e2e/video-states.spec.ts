@@ -112,9 +112,9 @@ test.describe("video state transitions", () => {
     // Simulate the polyfill setting buffering state by toggling classes directly.
     // In a real scenario this happens when networkState is LOADING and readyState
     // is low, but those properties are read-only in the browser.
+    // The polyfill treats buffering and playing as mutually exclusive.
     await page.evaluate(() => {
       const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
-      video.classList.add("media-pseudo-polyfill-playing");
       video.classList.add("media-pseudo-polyfill-buffering");
       video.classList.remove("media-pseudo-polyfill-paused");
     });
@@ -126,7 +126,6 @@ test.describe("video state transitions", () => {
   test("stalled badge shown when stalled class is active", async ({ page }) => {
     await page.evaluate(() => {
       const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
-      video.classList.add("media-pseudo-polyfill-playing");
       video.classList.add("media-pseudo-polyfill-buffering");
       video.classList.add("media-pseudo-polyfill-stalled");
       video.classList.remove("media-pseudo-polyfill-paused");

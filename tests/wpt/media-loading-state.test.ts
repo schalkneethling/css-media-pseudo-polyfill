@@ -72,8 +72,8 @@ describe("media-loading-state (WPT)", () => {
 
     observeMediaElements(ALL_UNSUPPORTED);
 
-    // Element is playing + NETWORK_LOADING + readyState <= HAVE_CURRENT_DATA → buffering
-    expect(hasPolyfillClass(video, "playing")).toBe(true);
+    // Element is not paused + NETWORK_LOADING + readyState <= HAVE_CURRENT_DATA → buffering
     expect(hasPolyfillClass(video, "buffering")).toBe(true);
+    expect(hasPolyfillClass(video, "playing")).toBe(false);
   });
 });

@@ -106,9 +106,9 @@ test.describe("audio state transitions", () => {
   test("buffering badge shown and playing badge hidden when buffering class is active", async ({
     page,
   }) => {
+    // The polyfill treats buffering and playing as mutually exclusive.
     await page.evaluate(() => {
       const audio = document.querySelector<HTMLAudioElement>('[data-testid="audio-cathedral"]')!;
-      audio.classList.add("media-pseudo-polyfill-playing");
       audio.classList.add("media-pseudo-polyfill-buffering");
       audio.classList.remove("media-pseudo-polyfill-paused");
     });
@@ -120,7 +120,6 @@ test.describe("audio state transitions", () => {
   test("stalled badge shown when stalled class is active", async ({ page }) => {
     await page.evaluate(() => {
       const audio = document.querySelector<HTMLAudioElement>('[data-testid="audio-cathedral"]')!;
-      audio.classList.add("media-pseudo-polyfill-playing");
       audio.classList.add("media-pseudo-polyfill-buffering");
       audio.classList.add("media-pseudo-polyfill-stalled");
       audio.classList.remove("media-pseudo-polyfill-paused");

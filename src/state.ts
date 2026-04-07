@@ -14,23 +14,22 @@ export function computeStates(element: HTMLMediaElement, isStalledFlag: boolean)
 
   if (element.paused) {
     states.add("paused");
-  } else {
-    states.add("playing");
-
+  } else if (
     // Network/ready-state constants are defined on the HTMLMediaElement interface:
     // https://html.spec.whatwg.org/multipage/media.html#htmlmediaelement
-    if (
-      // networkState: is the browser actively fetching data over the network?
-      element.networkState === element.NETWORK_LOADING &&
-      // readyState: how much media data has been decoded and is ready for playback?
-      element.readyState <= element.HAVE_CURRENT_DATA
-    ) {
-      states.add("buffering");
+    //
+    // networkState: is the browser actively fetching data over the network?
+    element.networkState === element.NETWORK_LOADING &&
+    // readyState: how much media data has been decoded and is ready for playback?
+    element.readyState <= element.HAVE_CURRENT_DATA
+  ) {
+    states.add("buffering");
 
-      if (isStalledFlag) {
-        states.add("stalled");
-      }
+    if (isStalledFlag) {
+      states.add("stalled");
     }
+  } else {
+    states.add("playing");
   }
 
   if (element.seeking) {
