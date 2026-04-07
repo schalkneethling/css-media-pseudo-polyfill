@@ -1,6 +1,11 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  server: {
+    fs: {
+      allow: [".."],
+    },
+  },
   test: {
     exclude: ["tests/e2e/**"],
   },
