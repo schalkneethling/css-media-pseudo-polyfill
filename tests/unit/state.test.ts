@@ -72,28 +72,35 @@ describe("computeStates", () => {
     },
     {
       ...baseCase,
-      name: "playing and buffering (loading with current data)",
+      name: "buffering (low readyState while not paused)",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
-      expected: ["playing", "buffering"],
+      expected: ["buffering"],
     },
     {
       ...baseCase,
-      name: "playing, buffering, and stalled",
+      name: "buffering (idle network, low readyState — e.g. just after play())",
+      networkState: NETWORK_IDLE,
+      readyState: HAVE_METADATA,
+      expected: ["buffering"],
+    },
+    {
+      ...baseCase,
+      name: "stalled (loading with current data and stalled flag)",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
       isStalledFlag: true,
-      expected: ["playing", "buffering", "stalled"],
+      expected: ["stalled"],
     },
     {
       ...baseCase,
-      name: "all active states: playing, buffering, stalled, seeking, muted",
+      name: "all active states: stalled, seeking, muted",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
       seeking: true,
       muted: true,
       isStalledFlag: true,
-      expected: ["playing", "buffering", "stalled", "seeking", "muted"],
+      expected: ["stalled", "seeking", "muted"],
     },
     {
       ...baseCase,
@@ -125,7 +132,7 @@ describe("computeStates", () => {
   ];
 
   describe("invariants", () => {
-    it("stalled implies buffering (stalled flag true but not loading → no stalled)", () => {
+    it("stalled flag ignored when readyState is sufficient (plays normally)", () => {
       const element = createMockElement({
         paused: false,
         networkState: NETWORK_IDLE,
@@ -139,7 +146,24 @@ describe("computeStates", () => {
       expect(states.has("playing")).toBe(true);
     });
 
-    it("buffering implies playing (paused element never buffering)", () => {
+    it("buffering and stalled are mutually exclusive", () => {
+      const bufferingElement = createMockElement({
+        paused: false,
+        networkState: NETWORK_LOADING,
+        readyState: HAVE_CURRENT_DATA,
+        seeking: false,
+        muted: false,
+      });
+      const bufferingStates = computeStates(bufferingElement, /* isStalledFlag */ false);
+      expect(bufferingStates.has("buffering")).toBe(true);
+      expect(bufferingStates.has("stalled")).toBe(false);
+
+      const stalledStates = computeStates(bufferingElement, /* isStalledFlag */ true);
+      expect(stalledStates.has("stalled")).toBe(true);
+      expect(stalledStates.has("buffering")).toBe(false);
+    });
+
+    it("paused element never buffering", () => {
       const element = createMockElement({
         paused: true,
         networkState: NETWORK_LOADING,
@@ -150,6 +174,19 @@ describe("computeStates", () => {
       const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(false);
       expect(states.has("paused")).toBe(true);
+    });
+
+    it("buffering and playing are mutually exclusive", () => {
+      const element = createMockElement({
+        paused: false,
+        networkState: NETWORK_LOADING,
+        readyState: HAVE_CURRENT_DATA,
+        seeking: false,
+        muted: false,
+      });
+      const states = computeStates(element, /* isStalledFlag */ false);
+      expect(states.has("buffering")).toBe(true);
+      expect(states.has("playing")).toBe(false);
     });
 
     it("playing and paused are mutually exclusive", () => {
@@ -189,7 +226,7 @@ describe("computeStates", () => {
     });
   });
 
-  describe("readyState boundary: buffering requires readyState <= HAVE_CURRENT_DATA", () => {
+  describe("readyState boundary: buffering requires readyState < HAVE_FUTURE_DATA", () => {
     it("HAVE_FUTURE_DATA does not trigger buffering", () => {
       const element = createMockElement({
         paused: false,
@@ -200,9 +237,22 @@ describe("computeStates", () => {
       });
       const states = computeStates(element, /* isStalledFlag */ false);
       expect(states.has("buffering")).toBe(false);
+      expect(states.has("playing")).toBe(true);
     });
 
-    it("HAVE_METADATA triggers buffering when loading", () => {
+    it("HAVE_CURRENT_DATA triggers buffering", () => {
+      const element = createMockElement({
+        paused: false,
+        networkState: NETWORK_LOADING,
+        readyState: HAVE_CURRENT_DATA,
+        seeking: false,
+        muted: false,
+      });
+      const states = computeStates(element, /* isStalledFlag */ false);
+      expect(states.has("buffering")).toBe(true);
+    });
+
+    it("HAVE_METADATA triggers buffering", () => {
       const element = createMockElement({
         paused: false,
         networkState: NETWORK_LOADING,
@@ -214,7 +264,7 @@ describe("computeStates", () => {
       expect(states.has("buffering")).toBe(true);
     });
 
-    it("HAVE_NOTHING triggers buffering when loading", () => {
+    it("HAVE_NOTHING triggers buffering", () => {
       const element = createMockElement({
         paused: false,
         networkState: NETWORK_LOADING,
@@ -227,8 +277,20 @@ describe("computeStates", () => {
     });
   });
 
-  describe("networkState boundary: buffering requires NETWORK_LOADING", () => {
-    it("NETWORK_EMPTY does not trigger buffering", () => {
+  describe("networkState does not affect buffering detection", () => {
+    it("NETWORK_IDLE with low readyState still triggers buffering", () => {
+      const element = createMockElement({
+        paused: false,
+        networkState: NETWORK_IDLE,
+        readyState: HAVE_CURRENT_DATA,
+        seeking: false,
+        muted: false,
+      });
+      const states = computeStates(element, /* isStalledFlag */ false);
+      expect(states.has("buffering")).toBe(true);
+    });
+
+    it("NETWORK_EMPTY with low readyState still triggers buffering", () => {
       const element = createMockElement({
         paused: false,
         networkState: NETWORK_EMPTY,
@@ -237,7 +299,7 @@ describe("computeStates", () => {
         muted: false,
       });
       const states = computeStates(element, /* isStalledFlag */ false);
-      expect(states.has("buffering")).toBe(false);
+      expect(states.has("buffering")).toBe(true);
     });
   });
 

@@ -15,12 +15,12 @@
 }
 
 .audio-card:has(audio:playing) .badge--playing {
-  opacity: 1;
+  display: inline-flex;
 }
 
 /* ── Paused state ── */
 .audio-card:has(audio:paused) .badge--paused {
-  opacity: 1;
+  display: inline-flex;
 }
 
 .audio-card:has(audio:paused) .eq-bar {
@@ -33,7 +33,7 @@
 }
 
 .audio-card:has(audio:muted) .badge--muted {
-  opacity: 1;
+  display: inline-flex;
 }
 
 .audio-card:has(audio:muted) .track-title {
@@ -42,4 +42,28 @@
 
 .audio-card:has(audio:muted) .eq-bar {
   opacity: 0.2;
+}
+
+/* ── Buffering state ── */
+.audio-card:has(audio:buffering) {
+  border-color: var(--sunset);
+}
+
+.audio-card:has(audio:buffering) .badge--buffering {
+  display: inline-flex;
+  border-color: var(--sunset);
+  color: var(--sunset);
+  animation: pulse-border 0.6s ease infinite alternate;
+}
+
+.audio-card:has(audio:buffering) .eq-bar {
+  animation-play-state: paused;
+  opacity: 0.5;
+}
+
+/* ── Stalled state ── */
+.audio-card:has(audio:stalled) .badge--stalled {
+  display: inline-flex;
+  border-color: #c04040;
+  color: #c04040;
 }

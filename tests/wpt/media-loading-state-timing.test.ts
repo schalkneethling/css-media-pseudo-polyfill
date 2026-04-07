@@ -50,17 +50,18 @@ describe("media-loading-state-timing (WPT)", () => {
     expect(hasPolyfillClass(video, "buffering")).toBe(true);
     expect(hasPolyfillClass(video, "stalled")).toBe(false);
 
-    // stalled event sets the isCurrentlyStalled flag
+    // stalled event sets the isCurrentlyStalled flag — switches from buffering to stalled
     fireEvent(video, "stalled");
     expect(hasPolyfillClass(video, "stalled")).toBe(true);
+    expect(hasPolyfillClass(video, "buffering")).toBe(false);
 
-    // progress event clears the stalled flag
+    // progress event clears the stalled flag — switches back to buffering
     // (WPT uses timeupdate here, but the polyfill listens to progress instead —
     // both indicate data arrival; progress fires when the browser fetches new data)
     fireEvent(video, "progress");
     expect(hasPolyfillClass(video, "stalled")).toBe(false);
 
-    // buffering may still be active if networkState/readyState haven't changed
+    // buffering resumes since networkState/readyState haven't changed
     expect(hasPolyfillClass(video, "buffering")).toBe(true);
 
     // Once enough data is available, buffering also clears

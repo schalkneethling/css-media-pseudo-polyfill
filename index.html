@@ -226,7 +226,7 @@
       }
 
       .badge {
-        display: inline-flex;
+        display: none;
         align-items: center;
         gap: 0.35rem;
         font-family: var(--font-display);
@@ -236,8 +236,6 @@
         border-radius: 1px;
         border: 1px solid var(--warm-gray);
         color: var(--sand);
-        opacity: 0;
-        transition: opacity 0.3s ease;
       }
 
       .badge-dot {
@@ -263,6 +261,14 @@
         background: #a04030;
       }
 
+      .badge--buffering .badge-dot {
+        background: var(--sunset);
+      }
+
+      .badge--stalled .badge-dot {
+        background: #c04040;
+      }
+
       /* ── Video pseudo-class styles (tests rewriteStyleElements path) ── */
       video:playing {
         box-shadow: 0 0 40px rgba(201, 148, 62, 0.35);
@@ -281,27 +287,51 @@
         filter: saturate(0.2) brightness(0.8);
       }
 
+      video:buffering {
+        outline: 2px solid var(--sunset);
+        outline-offset: -2px;
+        animation: pulse-border 0.6s ease infinite alternate;
+      }
+
+      video:stalled {
+        outline: 2px solid #c04040;
+        outline-offset: -2px;
+      }
+
       .video-card:has(video:playing) .badge--playing {
-        opacity: 1;
+        display: inline-flex;
         border-color: var(--gold);
         color: var(--gold);
       }
 
       .video-card:has(video:paused) .badge--paused {
-        opacity: 1;
+        display: inline-flex;
       }
 
       .video-card:has(video:seeking) .badge--seeking {
-        opacity: 1;
+        display: inline-flex;
         border-color: var(--sunset);
         color: var(--sunset);
         animation: pulse-border 0.6s ease infinite alternate;
       }
 
       .video-card:has(video:muted) .badge--muted {
-        opacity: 1;
+        display: inline-flex;
         border-color: #a04030;
         color: #a04030;
+      }
+
+      .video-card:has(video:buffering) .badge--buffering {
+        display: inline-flex;
+        border-color: var(--sunset);
+        color: var(--sunset);
+        animation: pulse-border 0.6s ease infinite alternate;
+      }
+
+      .video-card:has(video:stalled) .badge--stalled {
+        display: inline-flex;
+        border-color: #c04040;
+        color: #c04040;
       }
 
       /* ── Audio grid ── */
@@ -521,6 +551,12 @@
             <span class="badge badge--muted" data-testid="video-beach-muted"
               ><span class="badge-dot"></span>MUTED</span
             >
+            <span class="badge badge--buffering" data-testid="video-beach-buffering"
+              ><span class="badge-dot"></span>BUFFERING</span
+            >
+            <span class="badge badge--stalled" data-testid="video-beach-stalled"
+              ><span class="badge-dot"></span>STALLED</span
+            >
           </div>
           <div class="card-info">
             <h3 class="card-title">PACIFIC DAWN</h3>
@@ -545,6 +581,12 @@
             <span class="badge badge--muted" data-testid="video-blossoms-muted"
               ><span class="badge-dot"></span>MUTED</span
             >
+            <span class="badge badge--buffering" data-testid="video-blossoms-buffering"
+              ><span class="badge-dot"></span>BUFFERING</span
+            >
+            <span class="badge badge--stalled" data-testid="video-blossoms-stalled"
+              ><span class="badge-dot"></span>STALLED</span
+            >
           </div>
           <div class="card-info">
             <h3 class="card-title">IN BLOOM</h3>
@@ -568,6 +610,12 @@
             >
             <span class="badge badge--muted" data-testid="video-border-collie-muted"
               ><span class="badge-dot"></span>MUTED</span
+            >
+            <span class="badge badge--buffering" data-testid="video-border-collie-buffering"
+              ><span class="badge-dot"></span>BUFFERING</span
+            >
+            <span class="badge badge--stalled" data-testid="video-border-collie-stalled"
+              ><span class="badge-dot"></span>STALLED</span
             >
           </div>
           <div class="card-info">
@@ -610,6 +658,12 @@
               <span class="badge badge--muted" data-testid="audio-cathedral-muted"
                 ><span class="badge-dot"></span>MUTED</span
               >
+              <span class="badge badge--buffering" data-testid="audio-cathedral-buffering"
+                ><span class="badge-dot"></span>BUFFERING</span
+              >
+              <span class="badge badge--stalled" data-testid="audio-cathedral-stalled"
+                ><span class="badge-dot"></span>STALLED</span
+              >
             </div>
           </div>
           <audio controls preload="metadata" data-testid="audio-cathedral">
@@ -640,6 +694,12 @@
               <span class="badge badge--muted" data-testid="audio-flock-muted"
                 ><span class="badge-dot"></span>MUTED</span
               >
+              <span class="badge badge--buffering" data-testid="audio-flock-buffering"
+                ><span class="badge-dot"></span>BUFFERING</span
+              >
+              <span class="badge badge--stalled" data-testid="audio-flock-stalled"
+                ><span class="badge-dot"></span>STALLED</span
+              >
             </div>
           </div>
           <audio controls preload="metadata" data-testid="audio-flock">
@@ -669,6 +729,12 @@
               >
               <span class="badge badge--muted" data-testid="audio-synapse-muted"
                 ><span class="badge-dot"></span>MUTED</span
+              >
+              <span class="badge badge--buffering" data-testid="audio-synapse-buffering"
+                ><span class="badge-dot"></span>BUFFERING</span
+              >
+              <span class="badge badge--stalled" data-testid="audio-synapse-stalled"
+                ><span class="badge-dot"></span>STALLED</span
               >
             </div>
           </div>

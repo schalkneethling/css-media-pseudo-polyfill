@@ -14,23 +14,20 @@ export function computeStates(element: HTMLMediaElement, isStalledFlag: boolean)
 
   if (element.paused) {
     states.add("paused");
+  } else if (
+    // readyState: how much media data has been decoded and is ready for playback?
+    // https://html.spec.whatwg.org/multipage/media.html#htmlmediaelement
+    // HAVE_FUTURE_DATA (3) is the minimum needed to start or continue playback.
+    // Anything below that means the element cannot play even though it is not paused.
+    element.readyState < element.HAVE_FUTURE_DATA
+  ) {
+    if (isStalledFlag) {
+      states.add("stalled");
+    } else {
+      states.add("buffering");
+    }
   } else {
     states.add("playing");
-
-    // Network/ready-state constants are defined on the HTMLMediaElement interface:
-    // https://html.spec.whatwg.org/multipage/media.html#htmlmediaelement
-    if (
-      // networkState: is the browser actively fetching data over the network?
-      element.networkState === element.NETWORK_LOADING &&
-      // readyState: how much media data has been decoded and is ready for playback?
-      element.readyState <= element.HAVE_CURRENT_DATA
-    ) {
-      states.add("buffering");
-
-      if (isStalledFlag) {
-        states.add("stalled");
-      }
-    }
   }
 
   if (element.seeking) {
