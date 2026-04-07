@@ -10,10 +10,12 @@ import { rewriteCss } from "./rewrite.js";
  * Data URIs and absolute URLs (https?:, //, /) are left untouched.
  */
 function resolveUrls(cssText: string, base: string): string {
-  return cssText.replace(
-    /url\(\s*(['"]?)(?!data:|https?:|\/)(.*?)\1\s*\)/gi,
-    (_, quote, path) => `url(${quote}${new URL(path, base).href}${quote})`,
-  );
+  return cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, path) => {
+    if (/^(?:data:|https?:|\/)/.test(path)) {
+      return match;
+    }
+    return `url(${quote}${new URL(path, base).href}${quote})`;
+  });
 }
 
 /**
