@@ -23,10 +23,10 @@ export function computeStates(element: HTMLMediaElement, isStalledFlag: boolean)
     // readyState: how much media data has been decoded and is ready for playback?
     element.readyState <= element.HAVE_CURRENT_DATA
   ) {
-    states.add("buffering");
-
     if (isStalledFlag) {
       states.add("stalled");
+    } else {
+      states.add("buffering");
     }
   } else {
     states.add("playing");

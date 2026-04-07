@@ -117,16 +117,17 @@ test.describe("audio state transitions", () => {
     await expect(page.getByTestId("audio-cathedral-playing")).toHaveCSS("display", "none");
   });
 
-  test("stalled badge shown when stalled class is active", async ({ page }) => {
+  test("stalled badge shown and buffering badge hidden when stalled class is active", async ({
+    page,
+  }) => {
     await page.evaluate(() => {
       const audio = document.querySelector<HTMLAudioElement>('[data-testid="audio-cathedral"]')!;
-      audio.classList.add("media-pseudo-polyfill-buffering");
       audio.classList.add("media-pseudo-polyfill-stalled");
       audio.classList.remove("media-pseudo-polyfill-paused");
     });
 
     await expect(page.getByTestId("audio-cathedral-stalled")).toHaveCSS("display", "inline-flex");
-    await expect(page.getByTestId("audio-cathedral-buffering")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("audio-cathedral-buffering")).toHaveCSS("display", "none");
     await expect(page.getByTestId("audio-cathedral-playing")).toHaveCSS("display", "none");
   });
 });

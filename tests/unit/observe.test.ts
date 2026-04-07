@@ -304,7 +304,7 @@ describe("observeMediaElements", () => {
       fireEvent(element, "stalled");
 
       expect(element.classList.classes.has(`${CLASS_PREFIX}stalled`)).toBe(true);
-      expect(element.classList.classes.has(`${CLASS_PREFIX}buffering`)).toBe(true);
+      expect(element.classList.classes.has(`${CLASS_PREFIX}buffering`)).toBe(false);
     });
 
     it("progress event clears stalled flag", async () => {

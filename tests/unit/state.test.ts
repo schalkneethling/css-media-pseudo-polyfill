@@ -79,21 +79,21 @@ describe("computeStates", () => {
     },
     {
       ...baseCase,
-      name: "buffering and stalled",
+      name: "stalled (loading with current data and stalled flag)",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
       isStalledFlag: true,
-      expected: ["buffering", "stalled"],
+      expected: ["stalled"],
     },
     {
       ...baseCase,
-      name: "all active states: buffering, stalled, seeking, muted",
+      name: "all active states: stalled, seeking, muted",
       networkState: NETWORK_LOADING,
       readyState: HAVE_CURRENT_DATA,
       seeking: true,
       muted: true,
       isStalledFlag: true,
-      expected: ["buffering", "stalled", "seeking", "muted"],
+      expected: ["stalled", "seeking", "muted"],
     },
     {
       ...baseCase,
@@ -125,7 +125,7 @@ describe("computeStates", () => {
   ];
 
   describe("invariants", () => {
-    it("stalled implies buffering (stalled flag true but not loading → no stalled)", () => {
+    it("stalled flag ignored when not loading (plays normally)", () => {
       const element = createMockElement({
         paused: false,
         networkState: NETWORK_IDLE,
@@ -137,6 +137,23 @@ describe("computeStates", () => {
       expect(states.has("stalled")).toBe(false);
       expect(states.has("buffering")).toBe(false);
       expect(states.has("playing")).toBe(true);
+    });
+
+    it("buffering and stalled are mutually exclusive", () => {
+      const bufferingElement = createMockElement({
+        paused: false,
+        networkState: NETWORK_LOADING,
+        readyState: HAVE_CURRENT_DATA,
+        seeking: false,
+        muted: false,
+      });
+      const bufferingStates = computeStates(bufferingElement, /* isStalledFlag */ false);
+      expect(bufferingStates.has("buffering")).toBe(true);
+      expect(bufferingStates.has("stalled")).toBe(false);
+
+      const stalledStates = computeStates(bufferingElement, /* isStalledFlag */ true);
+      expect(stalledStates.has("stalled")).toBe(true);
+      expect(stalledStates.has("buffering")).toBe(false);
     });
 
     it("paused element never buffering", () => {

@@ -123,16 +123,17 @@ test.describe("video state transitions", () => {
     await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "none");
   });
 
-  test("stalled badge shown when stalled class is active", async ({ page }) => {
+  test("stalled badge shown and buffering badge hidden when stalled class is active", async ({
+    page,
+  }) => {
     await page.evaluate(() => {
       const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
-      video.classList.add("media-pseudo-polyfill-buffering");
       video.classList.add("media-pseudo-polyfill-stalled");
       video.classList.remove("media-pseudo-polyfill-paused");
     });
 
     await expect(page.getByTestId("video-beach-stalled")).toHaveCSS("display", "inline-flex");
-    await expect(page.getByTestId("video-beach-buffering")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-buffering")).toHaveCSS("display", "none");
     await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "none");
   });
 });
