@@ -7,8 +7,8 @@ test.describe("video state transitions", () => {
   });
 
   test("video starts paused with paused badge visible", async ({ page }) => {
-    await expect(page.getByTestId("video-beach-paused")).toHaveCSS("opacity", "1");
-    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("video-beach-paused")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "none");
   });
 
   test("playing a video shows the playing badge and hides the paused badge", async ({ page }) => {
@@ -20,8 +20,8 @@ test.describe("video state transitions", () => {
       });
     });
 
-    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("opacity", "1");
-    await expect(page.getByTestId("video-beach-paused")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-paused")).toHaveCSS("display", "none");
   });
 
   test("pausing a playing video shows the paused badge", async ({ page }) => {
@@ -41,8 +41,8 @@ test.describe("video state transitions", () => {
       });
     });
 
-    await expect(page.getByTestId("video-beach-paused")).toHaveCSS("opacity", "1");
-    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("video-beach-paused")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "none");
   });
 
   test("muting a video shows the muted badge", async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe("video state transitions", () => {
       video.muted = true;
     });
 
-    await expect(page.getByTestId("video-beach-muted")).toHaveCSS("opacity", "1");
+    await expect(page.getByTestId("video-beach-muted")).toHaveCSS("display", "inline-flex");
   });
 
   test("unmuting a video hides the muted badge", async ({ page }) => {
@@ -60,14 +60,14 @@ test.describe("video state transitions", () => {
       video.muted = true;
     });
 
-    await expect(page.getByTestId("video-beach-muted")).toHaveCSS("opacity", "1");
+    await expect(page.getByTestId("video-beach-muted")).toHaveCSS("display", "inline-flex");
 
     await page.evaluate(() => {
       const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
       video.muted = false;
     });
 
-    await expect(page.getByTestId("video-beach-muted")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("video-beach-muted")).toHaveCSS("display", "none");
   });
 
   test("seeking applies the polyfill seeking class", async ({ page }) => {
@@ -99,5 +99,41 @@ test.describe("video state transitions", () => {
     });
 
     expect(hadSeekingClass).toBe(true);
+  });
+
+  test("buffering and stalled badges are hidden by default", async ({ page }) => {
+    await expect(page.getByTestId("video-beach-buffering")).toHaveCSS("display", "none");
+    await expect(page.getByTestId("video-beach-stalled")).toHaveCSS("display", "none");
+  });
+
+  test("buffering badge shown and playing badge hidden when buffering class is active", async ({
+    page,
+  }) => {
+    // Simulate the polyfill setting buffering state by toggling classes directly.
+    // In a real scenario this happens when networkState is LOADING and readyState
+    // is low, but those properties are read-only in the browser.
+    await page.evaluate(() => {
+      const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
+      video.classList.add("media-pseudo-polyfill-playing");
+      video.classList.add("media-pseudo-polyfill-buffering");
+      video.classList.remove("media-pseudo-polyfill-paused");
+    });
+
+    await expect(page.getByTestId("video-beach-buffering")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "none");
+  });
+
+  test("stalled badge shown when stalled class is active", async ({ page }) => {
+    await page.evaluate(() => {
+      const video = document.querySelector<HTMLVideoElement>('[data-testid="video-beach"]')!;
+      video.classList.add("media-pseudo-polyfill-playing");
+      video.classList.add("media-pseudo-polyfill-buffering");
+      video.classList.add("media-pseudo-polyfill-stalled");
+      video.classList.remove("media-pseudo-polyfill-paused");
+    });
+
+    await expect(page.getByTestId("video-beach-stalled")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-buffering")).toHaveCSS("display", "inline-flex");
+    await expect(page.getByTestId("video-beach-playing")).toHaveCSS("display", "none");
   });
 });

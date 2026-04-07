@@ -219,7 +219,7 @@
       }
 
       .badge {
-        display: inline-flex;
+        display: none;
         align-items: center;
         gap: 0.35rem;
         font-family: var(--font-display);
@@ -229,8 +229,6 @@
         border-radius: 1px;
         border: 1px solid var(--warm-gray);
         color: var(--sand);
-        opacity: 0;
-        transition: opacity 0.3s ease;
       }
 
       .badge-dot {
@@ -294,37 +292,41 @@
       }
 
       .video-card:has(video:playing) .badge--playing {
-        opacity: 1;
+        display: inline-flex;
         border-color: var(--gold);
         color: var(--gold);
       }
 
       .video-card:has(video:paused) .badge--paused {
-        opacity: 1;
+        display: inline-flex;
       }
 
       .video-card:has(video:seeking) .badge--seeking {
-        opacity: 1;
+        display: inline-flex;
         border-color: var(--sunset);
         color: var(--sunset);
         animation: pulse-border 0.6s ease infinite alternate;
       }
 
       .video-card:has(video:muted) .badge--muted {
-        opacity: 1;
+        display: inline-flex;
         border-color: #a04030;
         color: #a04030;
       }
 
+      .video-card:has(video:buffering) .badge--playing {
+        display: none;
+      }
+
       .video-card:has(video:buffering) .badge--buffering {
-        opacity: 1;
+        display: inline-flex;
         border-color: var(--sunset);
         color: var(--sunset);
         animation: pulse-border 0.6s ease infinite alternate;
       }
 
       .video-card:has(video:stalled) .badge--stalled {
-        opacity: 1;
+        display: inline-flex;
         border-color: #c04040;
         color: #c04040;
       }
